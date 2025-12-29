@@ -1,0 +1,329 @@
+{
+  "total_segments": 32,
+  "emotion_segments": 32,
+  "success": 32,
+  "failed": 0,
+  "model_used": "gpt-4o-mini-tts",
+  "audio_files": [
+    {
+      "speaker": "Speaker 1",
+      "index": 1,
+      "file": "output/Speaker_1_001.mp3",
+      "text": "各位早安、午安、晚安——不管你現在在哪個時區，歡迎收聽今天這一集。今天我想直接下猛藥，標題我都替你想好了，叫做〈如果你真的懂了「情」，你就會看懂整部《笑傲江湖》〉。今天我們要聊的不是武功高低，不是門派正邪，更不是誰的劍比較快，而是一個在這一回被寫到極致的核心：情，以及它如何把人一步一步逼到生死邊緣。",
+      "enhanced_text": "各位早安、午安、晚安——不管你現在在哪個時區，歡迎收聽今天這一集。今天我想直接下猛藥，標題我都替你想好了，叫做〈如果你真的懂了「情」，你就會看懂整部《笑傲江湖》〉。今天我們要聊的不是武功高低，不是門派正邪，更不是誰的劍比較快，而是一個在這一回被寫到極致的核心：情，以及它如何把人一步一步逼到生死邊緣！",
+      "voice": "onyx",
+      "emotion": "excited",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 2,
+      "file": "output/Speaker_2_002.mp3",
+      "text": "等一下，我想先確認一件事。你是說這一整段，包括妓院、重傷、假死、師父追殺，真正的核心其實都不是江湖恩怨，而是情？",
+      "enhanced_text": "等一下，我想先確認一件事。你是說這一整段，包括妓院、重傷、假死、師父追殺，真正的核心其實都不是江湖恩怨，而是情？",
+      "voice": "marin",
+      "emotion": "curious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 3,
+      "file": "output/Speaker_1_003.mp3",
+      "text": "沒錯，而且不是安全、溫柔、被祝福的情，而是那種會讓人想自我毀滅、會讓人破戒、會讓人不顧一切的情。我們先從儀琳開始，因為她在這一回裡，整個人其實已經是碎掉的狀態。",
+      "enhanced_text": "沒錯，而且不是安全、溫柔、被祝福的情，而是那種會讓人想自我毀滅、會讓人破戒、會讓人不顧一切的情。我們先從儀琳開始，因為她在這一回裡，整個人其實已經是碎掉的狀態——",
+      "voice": "onyx",
+      "emotion": "intense",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 4,
+      "file": "output/Speaker_2_004.mp3",
+      "text": "她前面真的已經快撐不住了，一直覺得是自己害死令狐沖。",
+      "enhanced_text": "她前面真的已經快撐不住了，一直覺得是自己害死令狐沖……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 5,
+      "file": "output/Speaker_1_005.mp3",
+      "text": "對，你注意她說的那一句話，她說自己不配做他的朋友。這句話非常重，因為那已經不是單純的自責，而是自我否定到連存在的價值都想抹掉。",
+      "enhanced_text": "對，你注意她說的那一句話，她說自己不配做他的朋友。這句話非常重，因為那已經不是單純的自責，而是自我否定到連存在的價值都想抹掉。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 6,
+      "file": "output/Speaker_2_006.mp3",
+      "text": "這其實跟現實生活很像。很多人在重大創傷之後，會一直回到那種如果當初怎樣就好了的迴圈。",
+      "enhanced_text": "這其實跟現實生活很像。很多人在重大創傷之後，會一直回到那種如果當初怎樣就好了的迴圈……",
+      "voice": "marin",
+      "emotion": "reflective",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 7,
+      "file": "output/Speaker_1_007.mp3",
+      "text": "完全一樣。金庸在這裡寫得非常心理學。而就在儀琳情緒最低點的時候，曲非煙出現了。",
+      "enhanced_text": "完全一樣。金庸在這裡寫得非常心理學。而就在儀琳情緒最低點的時候，曲非煙出現了。",
+      "voice": "onyx",
+      "emotion": "calm",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 8,
+      "file": "output/Speaker_2_008.mp3",
+      "text": "她一開始假裝自己是令狐沖，那一段我其實很不安，感覺她是在故意刺激人。",
+      "enhanced_text": "她一開始假裝自己是令狐沖，那一段我其實很不安，感覺她是在故意刺激人。",
+      "voice": "marin",
+      "emotion": "concerned",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 9,
+      "file": "output/Speaker_1_009.mp3",
+      "text": "她就是在刺激，而且是刻意的。曲非煙這個角色厲害的地方在於，她年紀小，但對人心的理解比很多大人都深。她知道儀琳心裡最痛的是什麼，所以她直接戳下去。",
+      "enhanced_text": "她就是在刺激，而且是刻意的。曲非煙這個角色厲害的地方在於，她年紀小，但對人心的理解比很多大人都深。她知道儀琳心裡最痛的是什麼，所以她直接戳下去。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 10,
+      "file": "output/Speaker_2_010.mp3",
+      "text": "所以她不是壞，而是那種硬要你正視自己內心的人。",
+      "enhanced_text": "所以她不是壞，而是那種硬要你正視自己內心的人……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 11,
+      "file": "output/Speaker_1_011.mp3",
+      "text": "對，因為她背後站的是曲洋。曲洋是整部《笑傲江湖》裡，對情這件事理解得最通透的人之一。",
+      "enhanced_text": "對，因為她背後站的是曲洋。曲洋是整部《笑傲江湖》裡，對情這件事理解得最通透的人之一。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 12,
+      "file": "output/Speaker_2_012.mp3",
+      "text": "所以她把儀琳一路帶到妓院，其實不是惡作劇。",
+      "enhanced_text": "所以她把儀琳一路帶到妓院，其實不是惡作劇？",
+      "voice": "marin",
+      "emotion": "curious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 13,
+      "file": "output/Speaker_1_013.mp3",
+      "text": "完全不是。你想像那個畫面，一個小尼姑，從小只接觸清規戒律，第一次看到繡鴛鴦的錦被，第一次聞到脂粉香，第一次知道群玉院是什麼地方。",
+      "enhanced_text": "完全不是。你想像那個畫面，一個小尼姑，從小只接觸清規戒律，第一次看到繡鴛鴦的錦被，第一次聞到脂粉香，第一次知道群玉院是什麼地方——",
+      "voice": "onyx",
+      "emotion": "intense",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 14,
+      "file": "output/Speaker_2_014.mp3",
+      "text": "這對她來說幾乎是信仰層級的衝擊。",
+      "enhanced_text": "這對她來說幾乎是信仰層級的衝擊！",
+      "voice": "marin",
+      "emotion": "surprised",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 15,
+      "file": "output/Speaker_1_015.mp3",
+      "text": "而且她真的差一點走到自殺。當她以為事情要敗露，師父要闖進來的時候，她直接拔劍往自己脖子揮。",
+      "enhanced_text": "而且她真的差一點走到自殺。當她以為事情要敗露，師父要闖進來的時候，她直接拔劍往自己脖子揮——",
+      "voice": "onyx",
+      "emotion": "intense",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 16,
+      "file": "output/Speaker_2_016.mp3",
+      "text": "那一段我真的很震撼。她不是情緒化，她是真的認為只有死，才能保住門派的清白。",
+      "enhanced_text": "那一段我真的很震撼。她不是情緒化，她是真的認為只有死，才能保住門派的清白！",
+      "voice": "marin",
+      "emotion": "surprised",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 17,
+      "file": "output/Speaker_1_017.mp3",
+      "text": "對，這是出家人的戒，正面撞上人性的情。而就在這個時候，金庸做了一個關鍵安排，床上的那個人醒了。",
+      "enhanced_text": "對，這是出家人的戒，正面撞上人性的情。而就在這個時候，金庸做了一個關鍵安排，床上的那個人醒了。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 18,
+      "file": "output/Speaker_2_018.mp3",
+      "text": "令狐沖。",
+      "enhanced_text": "令狐沖。",
+      "voice": "marin",
+      "emotion": "calm",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 19,
+      "file": "output/Speaker_1_019.mp3",
+      "text": "對，而且你注意他醒來第一句話，他不是喊痛，也不是問自己在哪，而是要人點燈。",
+      "enhanced_text": "對，而且你注意他醒來第一句話，他不是喊痛，也不是問自己在哪，而是要人點燈。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 20,
+      "file": "output/Speaker_2_020.mp3",
+      "text": "那一句其實很有重量，會讓人立刻感覺到這個人即使快死了，場面還是他在撐。",
+      "enhanced_text": "那一句其實很有重量，會讓人立刻感覺到這個人即使快死了，場面還是他在撐……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 21,
+      "file": "output/Speaker_1_021.mp3",
+      "text": "這正是令狐沖的核心性格。他平時看起來隨性胡來，但關鍵時刻一定撐住。他知道現在最重要的不是自己活不活，而是儀琳不能被毀。",
+      "enhanced_text": "這正是令狐沖的核心性格。他平時看起來隨性胡來，但關鍵時刻一定撐住。他知道現在最重要的不是自己活不活，而是儀琳不能被毀。",
+      "voice": "onyx",
+      "emotion": "serious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 22,
+      "file": "output/Speaker_2_022.mp3",
+      "text": "所以他才讓她們躲進被窩，自己披著斗篷站起來。",
+      "enhanced_text": "所以他才讓她們躲進被窩，自己披著斗篷站起來……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 23,
+      "file": "output/Speaker_1_023.mp3",
+      "text": "沒錯，他是在用命換一個名分上的乾淨。這件事很殘酷，但也非常俠。",
+      "enhanced_text": "沒錯，他是在用命換一個名分上的乾淨。這件事很殘酷，但也非常俠……",
+      "voice": "onyx",
+      "emotion": "reflective",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 24,
+      "file": "output/Speaker_2_024.mp3",
+      "text": "我突然理解為什麼儀琳會崩潰了。不是因為他活著，而是因為她發現自己願意為這個人承擔一切後果。",
+      "enhanced_text": "我突然理解為什麼儀琳會崩潰了。不是因為他活著，而是因為她發現自己願意為這個人承擔一切後果……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 25,
+      "file": "output/Speaker_1_025.mp3",
+      "text": "她那句話非常狠。她說即便墮入十八重地獄，萬劫不能超生，也心甘情願。這不是浪漫的愛情宣言，而是情感被推到極限的狀態。",
+      "enhanced_text": "她那句話非常狠。她說即便墮入十八重地獄，萬劫不能超生，也心甘情願。這不是浪漫的愛情宣言，而是情感被推到極限的狀態——",
+      "voice": "onyx",
+      "emotion": "intense",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 26,
+      "file": "output/Speaker_2_026.mp3",
+      "text": "那曲非煙為什麼一定要揭穿？她其實可以選擇不說。",
+      "enhanced_text": "那曲非煙為什麼一定要揭穿？她其實可以選擇不說？",
+      "voice": "marin",
+      "emotion": "curious",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 27,
+      "file": "output/Speaker_1_027.mp3",
+      "text": "因為她要儀琳面對真相。她要她知道，你不是修行到無情，而是把情硬壓住。而真正的修行，是你清楚自己有多情，然後仍然選擇怎麼活下去。",
+      "enhanced_text": "因為她要儀琳面對真相。她要她知道，你不是修行到無情，而是把情硬壓住。而真正的修行，是你清楚自己有多情，然後仍然選擇怎麼活下去……",
+      "voice": "onyx",
+      "emotion": "reflective",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 28,
+      "file": "output/Speaker_2_028.mp3",
+      "text": "這樣看起來，這一回根本不是在治傷。",
+      "enhanced_text": "這樣看起來，這一回根本不是在治傷……",
+      "voice": "marin",
+      "emotion": "thoughtful",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 29,
+      "file": "output/Speaker_1_029.mp3",
+      "text": "完全正確。這一回表面上叫治傷，實際上被治的，是令狐沖的身體、儀琳的心，還有整個江湖對正邪的想像。",
+      "enhanced_text": "完全正確。這一回表面上叫治傷，實際上被治的，是令狐沖的身體、儀琳的心，還有整個江湖對正邪的想像……",
+      "voice": "onyx",
+      "emotion": "reflective",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 30,
+      "file": "output/Speaker_2_030.mp3",
+      "text": "我現在真的要收回一開始的想法。這與其說是武俠小說，不如說是一場披著武俠外衣的情感極限實驗。",
+      "enhanced_text": "我現在真的要收回一開始的想法。這與其說是武俠小說，不如說是一場披著武俠外衣的情感極限實驗！",
+      "voice": "marin",
+      "emotion": "surprised",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 31,
+      "file": "output/Speaker_1_031.mp3",
+      "text": "而這正是《笑傲江湖》最厲害的地方。下一集，我們會來聊一個關鍵問題，為什麼金庸要讓這一切發生在妓院。那個選擇，一點都不偶然。",
+      "enhanced_text": "而這正是《笑傲江湖》最厲害的地方。下一集，我們會來聊一個關鍵問題，為什麼金庸要讓這一切發生在妓院。那個選擇，一點都不偶然……",
+      "voice": "onyx",
+      "emotion": "reflective",
+      "model_used": "gpt-4o-mini-tts"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 32,
+      "file": "output/Speaker_2_032.mp3",
+      "text": "好，這個我一定要聽。",
+      "enhanced_text": "好，這個我一定要聽！",
+      "voice": "marin",
+      "emotion": "excited",
+      "model_used": "gpt-4o-mini-tts"
+    }
+  ]
+}
