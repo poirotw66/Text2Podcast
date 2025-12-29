@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-使用 OpenAI TTS API 生成音频文件
-从转录文件生成双人对话的音频
+Generate audio files using OpenAI TTS API
+Generate audio for two-person dialogue from transcript files
 """
 
 import os
@@ -9,81 +9,98 @@ import json
 from pathlib import Path
 from openai import OpenAI
 from typing import List, Tuple, Dict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
-# 加载 .env 文件
+# Load .env file
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # 如果没有安装 python-dotenv，跳过
+    pass  # Skip if python-dotenv is not installed
 
-# 初始化 OpenAI 客户端（延迟初始化，在 main 函数中检查）
+# Initialize OpenAI client (lazy initialization, checked in main function)
 client = None
+# Thread-local storage to create independent client for each thread
+_thread_local = threading.local()
+# Print lock to ensure output is not mixed up
+_print_lock = threading.Lock()
 
-# 为不同说话人配置不同的声音
+# Configure different voices for different speakers
 SPEAKER_VOICES = {
-    "Speaker 1": "nova",      # 较专业、清晰的声音
-    "Speaker 2": "shimmer"    # 较活泼、有活力的声音
+    "Speaker 1": "nova",      # More professional and clear voice
+    "Speaker 2": "shimmer"    # More lively and energetic voice
 }
 
-# TTS 模型配置
-TTS_MODEL = "tts-1"  # 使用高质量模型，如需节省成本可改为 "tts-1"
-AUDIO_FORMAT = "mp3"    # 输出格式：mp3, opus, aac, flac
+# TTS model configuration
+TTS_MODEL = "tts-1"  # Use high-quality model, change to "tts-1" to save costs if needed
+AUDIO_FORMAT = "mp3"    # Output format: mp3, opus, aac, flac
 
 
 def parse_transcript(file_path: str) -> List[Tuple[str, str]]:
     """
-    解析转录文件
+    Parse transcript file
     
     Args:
-        file_path: 转录文件路径
+        file_path: Path to transcript file
         
     Returns:
-        包含 (speaker, text) 元组的列表
+        List of (speaker, text) tuples
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read().strip()
     
-    # 解析 Python 列表格式
-    # 格式: [("Speaker 1", "text"), ...]
+    # Parse Python list format
+    # Format: [("Speaker 1", "text"), ...]
     try:
         transcript = eval(content)
         return transcript
     except Exception as e:
-        raise ValueError(f"无法解析转录文件: {e}")
+        raise ValueError(f"Unable to parse transcript file: {e}")
 
 
 def get_client() -> OpenAI:
-    """获取 OpenAI 客户端（延迟初始化）"""
-    global client
-    if client is None:
+    """Get OpenAI client (lazy initialization, thread-safe)"""
+    # Create independent client instance for each thread
+    if not hasattr(_thread_local, 'client'):
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY 未设置，请检查 .env 文件或环境变量")
-        client = OpenAI(api_key=api_key)
-    return client
+            raise ValueError("OPENAI_API_KEY is not set, please check .env file or environment variables")
+        _thread_local.client = OpenAI(api_key=api_key)
+    return _thread_local.client
 
 
 def generate_single_audio(
     text: str,
     voice: str,
     output_file: Path,
-    model: str = TTS_MODEL
-) -> bool:
+    model: str = TTS_MODEL,
+    index: int = None,
+    speaker: str = None,
+    total: int = None
+) -> Dict:
     """
-    生成单个音频文件
+    Generate a single audio file
     
     Args:
-        text: 要转换的文本
-        voice: 声音类型
-        output_file: 输出文件路径
-        model: TTS 模型
+        text: Text to convert
+        voice: Voice type
+        output_file: Output file path
+        model: TTS model
+        index: Current index (for progress display)
+        speaker: Speaker (for progress display)
+        total: Total count (for progress display)
         
     Returns:
-        是否成功
+        Dictionary containing results, with all information on success, error information on failure
     """
     try:
-        print(f"  生成音频: {output_file.name}")
+        with _print_lock:
+            if index and total:
+                print(f"[{index}/{total}] {speaker}:")
+            print(f"  Generating audio: {output_file.name}")
+            if text:
+                print(f"  Text: {text[:50]}..." if len(text) > 50 else f"  Text: {text}")
         
         openai_client = get_client()
         response = openai_client.audio.speech.create(
@@ -93,71 +110,119 @@ def generate_single_audio(
             response_format=AUDIO_FORMAT
         )
         
-        # 保存音频文件
+        # Save audio file
         response.stream_to_file(str(output_file))
-        return True
+        
+        with _print_lock:
+            print(f"  ✓ Completed: {output_file.name}\n")
+        
+        return {
+            "success": True,
+            "speaker": speaker,
+            "index": index,
+            "file": str(output_file),
+            "text": text,
+            "voice": voice
+        }
         
     except Exception as e:
-        print(f"  错误: {e}")
-        return False
+        with _print_lock:
+            if index and total:
+                print(f"[{index}/{total}] {speaker}:")
+            print(f"  ✗ Error: {e}\n")
+        return {
+            "success": False,
+            "speaker": speaker,
+            "index": index,
+            "error": str(e)
+        }
 
 
 def generate_audio_from_transcript(
     transcript_file: str,
     output_dir: str = "output",
-    model: str = TTS_MODEL
+    model: str = TTS_MODEL,
+    max_workers: int = 5
 ) -> Dict:
     """
-    从转录文件生成所有音频
+    Generate all audio from transcript file (using multithreading)
     
     Args:
-        transcript_file: 转录文件路径
-        output_dir: 输出目录
-        model: TTS 模型
+        transcript_file: Path to transcript file
+        output_dir: Output directory
+        model: TTS model
+        max_workers: Maximum number of threads (default: 5)
         
     Returns:
-        包含生成结果的字典
+        Dictionary containing generation results
     """
-    # 创建输出目录
+    # Create output directory
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
     
-    # 解析转录文件
-    print(f"解析转录文件: {transcript_file}")
+    # Parse transcript file
+    print(f"Parsing transcript file: {transcript_file}")
     transcript = parse_transcript(transcript_file)
-    print(f"找到 {len(transcript)} 段对话\n")
+    print(f"Found {len(transcript)} dialogue segments")
+    print(f"Using {max_workers} threads for parallel processing\n")
     
-    # 生成音频
+    # Prepare task list
+    tasks = []
+    for i, (speaker, text) in enumerate(transcript, 1):
+        voice = SPEAKER_VOICES.get(speaker, "alloy")
+        output_file = output_path / f"{speaker.replace(' ', '_')}_{i:03d}.{AUDIO_FORMAT}"
+        tasks.append({
+            "index": i,
+            "speaker": speaker,
+            "text": text,
+            "voice": voice,
+            "output_file": output_file,
+            "model": model,
+            "total": len(transcript)
+        })
+    
+    # Use thread pool to generate audio in parallel
     audio_files = []
     success_count = 0
     fail_count = 0
     
-    for i, (speaker, text) in enumerate(transcript, 1):
-        print(f"[{i}/{len(transcript)}] {speaker}:")
-        print(f"  文本: {text[:50]}..." if len(text) > 50 else f"  文本: {text}")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(
+                generate_single_audio,
+                task["text"],
+                task["voice"],
+                task["output_file"],
+                task["model"],
+                task["index"],
+                task["speaker"],
+                task["total"]
+            ): task for task in tasks
+        }
         
-        # 选择声音
-        voice = SPEAKER_VOICES.get(speaker, "alloy")
-        
-        # 生成输出文件名
-        output_file = output_path / f"{speaker.replace(' ', '_')}_{i:03d}.{AUDIO_FORMAT}"
-        
-        # 生成音频
-        if generate_single_audio(text, voice, output_file, model):
+        # Collect results (in completion order)
+        results = {}
+        for future in as_completed(future_to_task):
+            result = future.result()
+            results[result["index"]] = result
+    
+    # Sort by index and process results
+    for index in sorted(results.keys()):
+        result = results[index]
+        if result["success"]:
             audio_files.append({
-                "speaker": speaker,
-                "index": i,
-                "file": str(output_file),
-                "text": text,
-                "voice": voice
+                "speaker": result["speaker"],
+                "index": result["index"],
+                "file": result["file"],
+                "text": result["text"],
+                "voice": result["voice"]
             })
             success_count += 1
         else:
             fail_count += 1
-        
-        print()
     
-    # 保存元数据
+    # Save metadata
     metadata_file = output_path / "metadata.json"
     with open(metadata_file, 'w', encoding='utf-8') as f:
         json.dump({
@@ -167,11 +232,11 @@ def generate_audio_from_transcript(
             "audio_files": audio_files
         }, f, ensure_ascii=False, indent=2)
     
-    print(f"\n完成！")
-    print(f"成功: {success_count} 个")
-    print(f"失败: {fail_count} 个")
-    print(f"输出目录: {output_path.absolute()}")
-    print(f"元数据: {metadata_file}")
+    print("\nCompleted!")
+    print(f"Success: {success_count} files")
+    print(f"Failed: {fail_count} files")
+    print(f"Output directory: {output_path.absolute()}")
+    print(f"Metadata: {metadata_file}")
     
     return {
         "success": success_count,
@@ -187,115 +252,122 @@ def merge_audio_files(
     silence_duration_ms: int = 500
 ) -> str:
     """
-    合并所有音频文件（需要安装 pydub）
+    Merge all audio files (requires pydub installation)
     
     Args:
-        metadata_file: 元数据文件路径
-        output_file: 输出文件路径
-        silence_duration_ms: 音频片段之间的静音时长（毫秒）
+        metadata_file: Path to metadata file
+        output_file: Output file path
+        silence_duration_ms: Silence duration between audio segments (milliseconds)
         
     Returns:
-        合并后的文件路径
+        Path to merged file
     """
     try:
         from pydub import AudioSegment
     except ImportError:
-        print("错误: 需要安装 pydub 才能合并音频")
-        print("安装命令: pip install pydub")
+        print("Error: pydub is required to merge audio")
+        print("Install command: pip install pydub")
         return None
     
-    # 读取元数据
+    # Read metadata
     with open(metadata_file, 'r', encoding='utf-8') as f:
         metadata = json.load(f)
     
     audio_files = metadata.get("audio_files", [])
     
     if not audio_files:
-        print("没有找到音频文件")
+        print("No audio files found")
         return None
     
-    print(f"合并 {len(audio_files)} 个音频文件...")
+    print(f"Merging {len(audio_files)} audio files...")
     
     combined = AudioSegment.empty()
     
     for i, item in enumerate(audio_files, 1):
         file_path = item["file"]
-        print(f"  [{i}/{len(audio_files)}] 添加: {Path(file_path).name}")
+        print(f"  [{i}/{len(audio_files)}] Adding: {Path(file_path).name}")
         
         audio = AudioSegment.from_mp3(file_path)
         combined += audio
         
-        # 添加静音（最后一段不加）
+        # Add silence (not after the last segment)
         if i < len(audio_files):
             combined += AudioSegment.silent(duration=silence_duration_ms)
     
-    # 保存合并后的文件
+    # Save merged file
     output_path = Path(output_file)
     output_path.parent.mkdir(exist_ok=True)
     combined.export(str(output_path), format="mp3")
     
-    print(f"\n合并完成: {output_path.absolute()}")
+    print(f"\nMerge completed: {output_path.absolute()}")
     return str(output_path)
 
 
 def main():
-    """主函数"""
+    """Main function"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="使用 OpenAI TTS API 生成音频")
+    parser = argparse.ArgumentParser(description="Generate audio using OpenAI TTS API")
     parser.add_argument(
         "transcript_file",
         type=str,
-        help="转录文件路径"
+        help="Path to transcript file"
     )
     parser.add_argument(
         "-o", "--output",
         type=str,
         default="output",
-        help="输出目录（默认: output）"
+        help="Output directory (default: output)"
     )
     parser.add_argument(
         "-m", "--model",
         type=str,
         default=TTS_MODEL,
         choices=["tts-1", "tts-1-hd"],
-        help=f"TTS 模型（默认: {TTS_MODEL}）"
+        help=f"TTS model (default: {TTS_MODEL})"
     )
     parser.add_argument(
         "--merge",
         action="store_true",
-        help="生成后自动合并所有音频文件（需要 pydub）"
+        help="Automatically merge all audio files after generation (requires pydub)"
     )
     parser.add_argument(
         "--merge-output",
         type=str,
         default=None,
-        help="合并后的输出文件路径（默认: output/merged_audio.mp3）"
+        help="Output file path for merged audio (default: output/merged_audio.mp3)"
+    )
+    parser.add_argument(
+        "-j", "--workers",
+        type=int,
+        default=5,
+        help="Number of threads for parallel processing (default: 5)"
     )
     
     args = parser.parse_args()
     
-    # 检查 API Key（会在 get_client() 中再次检查，这里提前检查给出友好提示）
+    # Check API Key (will be checked again in get_client(), here we check early to give friendly prompt)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("错误: 请设置 OPENAI_API_KEY")
-        print("方法 1: 在 .env 文件中设置: OPENAI_API_KEY=your-api-key")
-        print("方法 2: 设置环境变量: export OPENAI_API_KEY='your-api-key'")
+        print("Error: Please set OPENAI_API_KEY")
+        print("Method 1: Set in .env file: OPENAI_API_KEY=your-api-key")
+        print("Method 2: Set environment variable: export OPENAI_API_KEY='your-api-key'")
         return
     
-    # 检查文件是否存在
+    # Check if file exists
     if not Path(args.transcript_file).exists():
-        print(f"错误: 文件不存在: {args.transcript_file}")
+        print(f"Error: File does not exist: {args.transcript_file}")
         return
     
-    # 生成音频
+    # Generate audio
     result = generate_audio_from_transcript(
         args.transcript_file,
         args.output,
-        args.model
+        args.model,
+        args.workers
     )
     
-    # 如果需要合并
+    # Merge if needed
     if args.merge:
         metadata_file = Path(args.output) / "metadata.json"
         merge_output = args.merge_output or str(Path(args.output) / "merged_audio.mp3")

@@ -1,0 +1,294 @@
+{
+  "total_segments": 41,
+  "success": 41,
+  "failed": 0,
+  "audio_files": [
+    {
+      "speaker": "Speaker 1",
+      "index": 1,
+      "file": "output/Speaker_1_001.mp3",
+      "text": "各位早安、午安、晚安——看你現在身處哪個時區。歡迎收聽今天這一集。我先直接丟一個超級重磅、幾乎是 click-bait 等級的開場：如果你今天真的聽懂了這一個詞，你會突然理解，為什麼 Sony 可以同時做主機、做電影、做音樂、做動畫，而且每一次都剛好打中你心裡最柔軟的那個位置。這個詞，對 Sony 來說幾乎是宗教信仰。它叫做——Kando。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 2,
+      "file": "output/Speaker_2_002.mp3",
+      "text": "好，我要先確認一下。Kando，是那個日文的「感動」嗎？就是那種，看電影看到哭，或者玩遊戲破關時整個人被電到的感覺？我現在有點興奮，但也有點不確定我是不是理解對了。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 3,
+      "file": "output/Speaker_1_003.mp3",
+      "text": "你抓到關鍵了，但也只抓到一半。Kando 常被翻成 emotion，情感，但這個翻譯其實非常不夠。Kando 指的是一種，你沒有被說教、沒有被強迫，但某一個體驗在瞬間擊中你的狀態。不是理解，是命中。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 4,
+      "file": "output/Speaker_2_004.mp3",
+      "text": "所以不是單純覺得好看、好玩，而是那種，突然覺得這一幕會留在你人生裡的感覺？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 5,
+      "file": "output/Speaker_1_005.mp3",
+      "text": "完全正確，而且它不是發生在腦袋，是發生在胸口。我舉一個非常生活化的例子。你一定有過這樣的經驗：某一首歌，平常聽覺得普通，但某一天，在特定的時間點，比如深夜、人生有點卡關、窗外在下雨，那首歌一播下去，你整個人被拉走。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 6,
+      "file": "output/Speaker_2_006.mp3",
+      "text": "我懂，我真的懂。而且那首歌從那一天開始，就再也不是同一首歌了。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 7,
+      "file": "output/Speaker_1_007.mp3",
+      "text": "沒錯，那個瞬間就是 Kando。而 Sony 很瘋的一件事是，他們不是把這當成品牌口號，而是把它當成公司存在的理由。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 8,
+      "file": "output/Speaker_2_008.mp3",
+      "text": "這裡我就很好奇了。這聽起來很浪漫，但企業真的會這樣想嗎？還是只是簡報上寫得很好看的那種理念？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 9,
+      "file": "output/Speaker_1_009.mp3",
+      "text": "這也是我一開始最懷疑的地方。但我們得回到 1946 年。Sony 剛成立的時候，日本剛打完仗，資源極度匱乏。創辦人當時講的不是市佔率，也不是規模，而是一句話：用科技去豐富人們的生活。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 10,
+      "file": "output/Speaker_2_010.mp3",
+      "text": "老實說，這句話很多公司都會講，但現在這樣串起來看，我開始覺得 Sony 好像是真的一路照著這條路在走。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 11,
+      "file": "output/Speaker_1_011.mp3",
+      "text": "正是如此。你回頭看 Sony 走過的每一個世代，從類比、數位、網際網路、到雲端，每一次，他們都不是只問技術能做到什麼，而是問能不能創造一種新的體驗。而且這件事不只發生在硬體上。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 12,
+      "file": "output/Speaker_2_012.mp3",
+      "text": "因為現在的 Sony，真的很難用一個產業去定義。又有 PlayStation，又有音樂、電影、動畫，這個組合老實說滿奇怪的。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 13,
+      "file": "output/Speaker_1_013.mp3",
+      "text": "奇怪，但極度強。全世界幾乎沒有第二家公司，可以同時這麼深度地接觸創作者，又這麼直接地接觸粉絲。今年有一個非常誇張的例子，就是《鬼滅之刃：無限城篇》。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 14,
+      "file": "output/Speaker_2_014.mp3",
+      "text": "我知道這一部。它的票房是不是已經高到不像現實？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 15,
+      "file": "output/Speaker_1_015.mp3",
+      "text": "不是誇張，是歷史級。到十一月底，它成為全球發行史上票房最高的日本電影，而且在 2025 年所有電影中，直接衝到第五名。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 16,
+      "file": "output/Speaker_2_016.mp3",
+      "text": "那真的很像 Kando 的標準範例。因為你不是覺得被娛樂，而是整個情緒被帶著走。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 17,
+      "file": "output/Speaker_1_017.mp3",
+      "text": "這正是 Sony 自己的說法：把創作者的願景，和對粉絲的深刻理解，強行黏在一起。接下來我們要轉到一個聽起來很工程師，但其實非常關鍵的角色，AWS。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 18,
+      "file": "output/Speaker_2_018.mp3",
+      "text": "好，這個轉折我有點意外。從情感直接跳到雲端。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 19,
+      "file": "output/Speaker_1_019.mp3",
+      "text": "但這就是現實。早在 2010 年初期，PlayStation 網路服務快速成長時，Sony 就選擇 AWS，原因很簡單：全球規模、穩定性，還有瞬間爆量的能力。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 20,
+      "file": "output/Speaker_2_020.mp3",
+      "text": "所以 PS5 發售的時候，全球玩家同時湧入，系統還能撐住，其實是這個原因？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 21,
+      "file": "output/Speaker_1_021.mp3",
+      "text": "完全正確。2020 年 PS5 上市，他們用 AWS 把整個架構改成微服務，部署速度提升四倍，前置時間縮短到原本的十分之一。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 22,
+      "file": "output/Speaker_2_022.mp3",
+      "text": "這個數字真的很誇張。所以現在到底有多少玩家在同時使用？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 23,
+      "file": "output/Speaker_1_023.mp3",
+      "text": "高峰時期，一億兩千九百萬名玩家同時連線。但重點不是數字，而是這些人正在同時共享一個情緒場，那就是 Kando。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 24,
+      "file": "output/Speaker_2_024.mp3",
+      "text": "我突然理解了。那不是單純的技術穩定度，而是在維持一個巨大的體驗狀態。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 25,
+      "file": "output/Speaker_1_025.mp3",
+      "text": "正是如此。而接下來他們想做得更瘋。他們想把粉絲連起來，不只是玩同一款遊戲，而是把興趣、情感、IP 全部串在一起。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 26,
+      "file": "output/Speaker_2_026.mp3",
+      "text": "聽起來像一個超大型的粉絲宇宙。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 27,
+      "file": "output/Speaker_1_027.mp3",
+      "text": "他們稱之為 Sony Engagement Platform。核心是資料，但不是冷冰冰的資料，而是理解。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 28,
+      "file": "output/Speaker_2_028.mp3",
+      "text": "我現在有點擔心你要開始講資料湖了。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 29,
+      "file": "output/Speaker_1_029.mp3",
+      "text": "那我就直接講。Sony Data Ocean，用 AWS 建立，多個資料湖，每天處理七百六十 TB 的資料，來自五百多個來源。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 30,
+      "file": "output/Speaker_2_030.mp3",
+      "text": "好，這個規模我服了。那 AI 一定也在裡面吧？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 31,
+      "file": "output/Speaker_1_031.mp3",
+      "text": "當然。他們在企業內部全面導入自家大型語言模型，用 Amazon Bedrock 打造，目前有五萬七千名員工在使用，每天十五萬次推理請求。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 32,
+      "file": "output/Speaker_2_032.mp3",
+      "text": "這已經不是實驗階段，是全面部署。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 33,
+      "file": "output/Speaker_1_033.mp3",
+      "text": "沒錯，而且現在已經進入 agentic AI 階段，搭配 Bedrock Agent Core 和 Nova Forge。他們甚至把 Nova 2.0 Light 微調到，在文件一致性、引用與合規審查上，效能直接超越基準模型。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 34,
+      "file": "output/Speaker_2_034.mp3",
+      "text": "如果合規流程可以快上數十倍，對大型企業來說幾乎是生存等級的優勢。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 35,
+      "file": "output/Speaker_1_035.mp3",
+      "text": "是的。但最重要的是，在創作領域，Sony 對 AI 的態度非常清楚。尊重創作者，尊重表演者，這條線不退。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 36,
+      "file": "output/Speaker_2_036.mp3",
+      "text": "我現在突然覺得，這整件事的核心其實不是 AI。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 37,
+      "file": "output/Speaker_1_037.mp3",
+      "text": "完全正確。AI 只是工具，真正的目標，從頭到尾都只有那一個詞，Kando。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 38,
+      "file": "output/Speaker_2_038.mp3",
+      "text": "那未來會長成什麼樣子？",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 39,
+      "file": "output/Speaker_1_039.mp3",
+      "text": "更多跨媒體 IP，例如《秘境探險》、《最後生還者》。更多虛實融合的體驗，甚至進入實體場域。以及更多粉絲和創作者之間，不只是觀看，而是連結。",
+      "voice": "nova"
+    },
+    {
+      "speaker": "Speaker 2",
+      "index": 40,
+      "file": "output/Speaker_2_040.mp3",
+      "text": "我現在終於懂你一開始為什麼說，這一集會有一點宗教感了。",
+      "voice": "shimmer"
+    },
+    {
+      "speaker": "Speaker 1",
+      "index": 41,
+      "file": "output/Speaker_1_041.mp3",
+      "text": "因為對 Sony 來說，這確實是一種信仰。他們真正想做的不是產品，而是創造人一輩子都記得的瞬間。這就是 Kando。謝謝你陪我們走到這裡，也謝謝你聽我們聊這個又浪漫、又工程師的故事。",
+      "voice": "nova"
+    }
+  ]
+}
