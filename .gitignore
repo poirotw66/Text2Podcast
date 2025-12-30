@@ -1,3 +1,4 @@
 .env
 .DS_Store
 output/笑傲江湖_gemini/
+backend/outputs/
