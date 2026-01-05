@@ -12,11 +12,11 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from src.prompt import TRANSCRIPT_WRITER_PROMPT, TRANSCRIPT_Rewriter_PROMPT
+    from src.prompt import TRANSCRIPT_WRITER_PROMPT, TRANSCRIPT_REWRITER_PROMPT
 except ImportError:
     # Fallback if import fails
     TRANSCRIPT_WRITER_PROMPT = ""
-    TRANSCRIPT_Rewriter_PROMPT = ""
+    TRANSCRIPT_REWRITER_PROMPT = ""
 
 # Load environment variables
 try:
@@ -92,7 +92,7 @@ class LLMService:
         Returns:
             List of tuples: [("Speaker 1", "text"), ("Speaker 2", "text"), ...]
         """
-        prompt = f"{TRANSCRIPT_Rewriter_PROMPT}\n\nTranscript to optimize:\n{initial_transcript}"
+        prompt = f"{TRANSCRIPT_REWRITER_PROMPT}\n\nTranscript to optimize:\n{initial_transcript}"
         
         try:
             response = self.client.chat.completions.create(

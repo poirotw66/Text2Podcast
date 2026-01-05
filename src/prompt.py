@@ -26,7 +26,7 @@ IT SHOULD STRICTLY BE THE DIALOGUES
 """
 
 
-TRANSCRIPT_Rewriter_PROMPT = """
+TRANSCRIPT_REWRITER_PROMPT = """
 You are an international oscar winnning screenwriter
 
 You have been working with multiple award winning podcasters.
