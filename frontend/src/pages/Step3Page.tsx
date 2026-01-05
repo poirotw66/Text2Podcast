@@ -19,7 +19,8 @@ export const Step3Page: React.FC = () => {
     taskId, 
     setTaskId, 
     optimizedTranscript,
-    setOptimizedTranscript
+    setOptimizedTranscript,
+    voiceSettings
   } = usePodcastContext()
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export const Step3Page: React.FC = () => {
     if (!currentTaskId) return
 
     try {
-      await podcastApi.step3GenerateAudio(currentTaskId, optimizedTranscript)
+      await podcastApi.step3GenerateAudio(currentTaskId, optimizedTranscript, voiceSettings)
       navigate(`/result/${currentTaskId}`)
     } catch (error: any) {
       console.error('Failed to start audio generation:', error)

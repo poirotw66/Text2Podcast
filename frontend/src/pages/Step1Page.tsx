@@ -1,5 +1,5 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Stepper } from '../components/Stepper'
 import { Step1Upload } from '../components/Step1Upload'
 import { usePodcastContext } from '../contexts/PodcastContext'
@@ -32,12 +32,32 @@ export const Step1Page: React.FC = () => {
     <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: '#f5f5f5' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#333' }}>
-            Podcast Generator
-          </h1>
-          <p style={{ fontSize: '1.2rem', color: '#666' }}>
-            Transform your text into engaging podcast conversations
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ flex: 1 }}></div>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#333' }}>
+                Podcast Generator
+              </h1>
+              <p style={{ fontSize: '1.2rem', color: '#666' }}>
+                Transform your text into engaging podcast conversations
+              </p>
+            </div>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <Link
+                to="/settings"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '4px',
+                  fontSize: '0.9rem'
+                }}
+              >
+                ⚙️ Settings
+              </Link>
+            </div>
+          </div>
         </header>
 
         <Stepper currentStep={1} steps={STEPS} />

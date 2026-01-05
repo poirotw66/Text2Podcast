@@ -1,4 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { DEFAULT_VOICES } from '../data/voices'
+
+interface VoiceSettings {
+  'Speaker 1': string
+  'Speaker 2': string
+}
 
 interface PodcastContextType {
   taskId: string | null
@@ -9,6 +15,8 @@ interface PodcastContextType {
   setEditedTranscript: (text: string) => void
   optimizedTranscript: Array<[string, string]>
   setOptimizedTranscript: (transcript: Array<[string, string]>) => void
+  voiceSettings: VoiceSettings
+  setVoiceSettings: (settings: VoiceSettings) => void
   clearAll: () => void
 }
 
@@ -19,6 +27,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [initialTranscript, setInitialTranscript] = useState<string>('')
   const [editedTranscript, setEditedTranscript] = useState<string>('')
   const [optimizedTranscript, setOptimizedTranscript] = useState<Array<[string, string]>>([])
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(DEFAULT_VOICES)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -26,6 +35,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const savedInitial = localStorage.getItem('podcast_initialTranscript')
     const savedEdited = localStorage.getItem('podcast_editedTranscript')
     const savedOptimized = localStorage.getItem('podcast_optimizedTranscript')
+    const savedVoices = localStorage.getItem('podcast_voiceSettings')
 
     if (savedTaskId) setTaskId(savedTaskId)
     if (savedInitial) setInitialTranscript(savedInitial)
@@ -35,6 +45,13 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setOptimizedTranscript(JSON.parse(savedOptimized))
       } catch (e) {
         console.error('Failed to parse optimized transcript:', e)
+      }
+    }
+    if (savedVoices) {
+      try {
+        setVoiceSettings(JSON.parse(savedVoices))
+      } catch (e) {
+        console.error('Failed to parse voice settings:', e)
       }
     }
   }, [])
@@ -72,6 +89,10 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [optimizedTranscript])
 
+  useEffect(() => {
+    localStorage.setItem('podcast_voiceSettings', JSON.stringify(voiceSettings))
+  }, [voiceSettings])
+
   const clearAll = () => {
     setTaskId(null)
     setInitialTranscript('')
@@ -81,6 +102,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.removeItem('podcast_initialTranscript')
     localStorage.removeItem('podcast_editedTranscript')
     localStorage.removeItem('podcast_optimizedTranscript')
+    // Note: voiceSettings are preserved when clearing
   }
 
   return (
@@ -94,6 +116,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setEditedTranscript,
         optimizedTranscript,
         setOptimizedTranscript,
+        voiceSettings,
+        setVoiceSettings,
         clearAll
       }}
     >

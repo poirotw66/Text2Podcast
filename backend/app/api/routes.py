@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
-from typing import Dict
+from typing import Dict, Optional
 
 from app.models.schemas import (
     UploadRequest, UploadResponse, TaskStatusResponse, TaskStatus, ProgressEvent,
@@ -246,8 +246,17 @@ async def step3_generate_audio(task_id: str, request: Step3Request, background_t
     final_transcript_file = task_output_dir / "final_transcript.txt"
     save_transcript(final_transcript, final_transcript_file)
     
+    # Get voice settings from request or use defaults
+    voice_settings = None
+    if request and request.voice_settings:
+        voice_settings = request.voice_settings
+        # Log voice settings for debugging
+        print(f"Received voice settings: {voice_settings}")
+    else:
+        print("No voice settings provided, using defaults")
+    
     # Start background audio generation
-    background_tasks.add_task(process_audio_generation, task_id, final_transcript)
+    background_tasks.add_task(process_audio_generation, task_id, final_transcript, voice_settings)
     
     return TaskStatusResponse(
         task_id=task_id,
@@ -257,7 +266,7 @@ async def step3_generate_audio(task_id: str, request: Step3Request, background_t
     )
 
 
-async def process_audio_generation(task_id: str, transcript: list):
+async def process_audio_generation(task_id: str, transcript: list, voice_settings: Optional[Dict[str, str]] = None):
     """Background task to generate audio from transcript"""
     task_manager = get_task_manager()
     audio_service = get_audio_service()
@@ -269,8 +278,15 @@ async def process_audio_generation(task_id: str, transcript: list):
             task_id, TaskStatus.STEP3, 30, "Generating audio files..."
         )
         
+        # Log voice settings for debugging
+        if voice_settings:
+            print(f"Using voice settings in audio generation: {voice_settings}")
+        else:
+            print("Using default voice settings in audio generation")
+        
+        # Pass voice settings directly to audio generation
         audio_result = audio_service.generate_audio_from_transcript(
-            transcript, task_output_dir
+            transcript, task_output_dir, voice_settings=voice_settings
         )
         
         if audio_result["success"] == 0:

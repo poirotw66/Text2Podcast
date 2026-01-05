@@ -91,9 +91,14 @@ export const podcastApi = {
   /**
    * Step 3: Generate audio
    */
-  async step3GenerateAudio(taskId: string, finalTranscript?: Array<[string, string]>): Promise<TaskStatus> {
+  async step3GenerateAudio(
+    taskId: string, 
+    finalTranscript?: Array<[string, string]>,
+    voiceSettings?: { 'Speaker 1': string; 'Speaker 2': string }
+  ): Promise<TaskStatus> {
     const response = await api.post(`/api/step3/${taskId}`, {
-      final_transcript: finalTranscript
+      final_transcript: finalTranscript || null,
+      voice_settings: voiceSettings || null
     })
     return response.data
   },

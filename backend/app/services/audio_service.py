@@ -6,6 +6,7 @@ import os
 import json
 import time
 import sys
+import re
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 from google.cloud import texttospeech
@@ -22,11 +23,21 @@ except ImportError:
 # Thread-local storage for client
 _thread_local = threading.local()
 
-# Configure voices
+# Configure voices (default, can be overridden)
 SPEAKER_VOICES = {
     "Speaker 1": "Kore",
     "Speaker 2": "Charon"
 }
+
+def get_voice_settings() -> Dict[str, str]:
+    """Get current voice settings"""
+    return SPEAKER_VOICES.copy()
+
+def set_voice_settings(settings: Dict[str, str]):
+    """Update voice settings"""
+    global SPEAKER_VOICES
+    if settings:
+        SPEAKER_VOICES.update(settings)
 
 # TTS configuration
 TTS_MODEL = "gemini-2.5-flash-tts"
@@ -173,7 +184,8 @@ class AudioService:
         self,
         transcript: List[Tuple[str, str]],
         output_dir: Path,
-        max_workers: int = 5
+        max_workers: int = 5,
+        voice_settings: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Generate audio files from transcript
@@ -182,16 +194,44 @@ class AudioService:
             transcript: List of (speaker, text) tuples
             output_dir: Output directory
             max_workers: Number of parallel workers
+            voice_settings: Optional voice settings dict (e.g., {"Speaker 1": "Kore", "Speaker 2": "Charon"})
             
         Returns:
             Dictionary with audio files info and metadata
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Use provided voice settings or fall back to defaults
+        voices_to_use = voice_settings if voice_settings else SPEAKER_VOICES
+        
+        # Log which voices are being used
+        print(f"Voice mapping: {voices_to_use}")
+        
+        # Helper function to normalize speaker name (handle both English and Chinese)
+        def get_voice_for_speaker(speaker_name: str) -> str:
+            """Get voice for speaker, handling both English and Chinese speaker names"""
+            # Try exact match first
+            if speaker_name in voices_to_use:
+                return voices_to_use[speaker_name]
+            
+            # Try to match by extracting speaker number
+            # Handle formats like "Speaker 1", "講者 1", "Speaker1", "講者1", etc.
+            match = re.search(r'[12]', speaker_name)
+            if match:
+                speaker_num = match.group()
+                # Map to English key format
+                english_key = f"Speaker {speaker_num}"
+                if english_key in voices_to_use:
+                    return voices_to_use[english_key]
+            
+            # Default fallback
+            return "Kore"
+        
         # Prepare tasks
         tasks = []
         for i, (speaker, text) in enumerate(transcript, 1):
-            voice = SPEAKER_VOICES.get(speaker, "Kore")
+            voice = get_voice_for_speaker(speaker)
+            print(f"Segment {i}: Speaker '{speaker}' -> Voice '{voice}'")
             output_file = output_dir / f"{speaker.replace(' ', '_')}_{i:03d}.{AUDIO_FORMAT}"
             tasks.append({
                 "index": i,

@@ -2,7 +2,7 @@
 Pydantic models for request/response validation
 """
 from pydantic import BaseModel
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from enum import Enum
 
 
@@ -51,6 +51,7 @@ class Step2Response(BaseModel):
 class Step3Request(BaseModel):
     """Request model for step 3 (generate audio)"""
     final_transcript: Optional[List[Tuple[str, str]]] = None  # Optional: final transcript to use for audio generation
+    voice_settings: Optional[Dict[str, str]] = None  # Optional: custom voice settings {"Speaker 1": "Kore", "Speaker 2": "Charon"}
 
 
 class TaskStatusResponse(BaseModel):
