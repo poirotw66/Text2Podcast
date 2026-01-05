@@ -51,7 +51,7 @@ class LLMService:
                 api_key=api_key,
                 http_client=http_client
             )
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4o")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07")
     
     def generate_initial_transcript(self, text_content: str) -> str:
         """
@@ -66,15 +66,21 @@ class LLMService:
         prompt = f"{TRANSCRIPT_WRITER_PROMPT}\n\nContent to convert:\n{text_content}"
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": "You are a world-class podcast writer."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.8,
-                max_tokens=4000
-            )
+                "max_completion_tokens": 4000
+            }
+            
+            # Only add temperature if model supports it (gpt-5-mini doesn't support custom temperature)
+            if not self.model.startswith("gpt-5"):
+                request_params["temperature"] = 0.8
+            
+            response = self.client.chat.completions.create(**request_params)
             
             transcript = response.choices[0].message.content.strip()
             return transcript
@@ -95,15 +101,21 @@ class LLMService:
         prompt = f"{TRANSCRIPT_REWRITER_PROMPT}\n\nTranscript to optimize:\n{initial_transcript}"
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": "You are an international oscar winning screenwriter."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.7,
-                max_tokens=4000
-            )
+                "max_completion_tokens": 4000
+            }
+            
+            # Only add temperature if model supports it (gpt-5-mini doesn't support custom temperature)
+            if not self.model.startswith("gpt-5"):
+                request_params["temperature"] = 0.7
+            
+            response = self.client.chat.completions.create(**request_params)
             
             optimized_text = response.choices[0].message.content.strip()
             
