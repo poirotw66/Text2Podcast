@@ -51,7 +51,7 @@ class LLMService:
                 api_key=api_key,
                 http_client=http_client
             )
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini-2024-07-18")
     
     def generate_initial_transcript(self, text_content: str) -> str:
         """

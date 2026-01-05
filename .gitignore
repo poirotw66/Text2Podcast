@@ -2,4 +2,10 @@
 .DS_Store
 output/笑傲江湖_gemini/
 backend/outputs/
+
+# Python compiled files
 *.pyc
+**/*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
