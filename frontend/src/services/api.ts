@@ -97,5 +97,13 @@ export const podcastApi = {
     })
     return response.data
   },
+
+  /**
+   * Get transcript content
+   */
+  async getTranscript(taskId: string): Promise<{ transcript: Array<[string, string]> }> {
+    const response = await api.get(`/api/transcript/${taskId}`)
+    return response.data
+  },
 }
 

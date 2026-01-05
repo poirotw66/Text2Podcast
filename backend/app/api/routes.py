@@ -373,6 +373,51 @@ async def download_transcript(task_id: str):
     )
 
 
+@router.get("/transcript/{task_id}")
+async def get_transcript(task_id: str):
+    """Get transcript content as JSON"""
+    task_manager = get_task_manager()
+    task = task_manager.get_task(task_id)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Try to load final transcript first, then optimized, then initial
+    transcript_paths = [
+        Path(task.transcript_file) if task.transcript_file else None,
+        OUTPUTS_DIR / task_id / "final_transcript.txt",
+        OUTPUTS_DIR / task_id / "optimized_transcript.txt",
+        OUTPUTS_DIR / task_id / "initial_transcript.txt"
+    ]
+    
+    for transcript_path in transcript_paths:
+        if transcript_path and transcript_path.exists():
+            try:
+                from app.utils.file_handler import load_transcript, load_text_file
+                # Try to load as structured transcript first
+                try:
+                    transcript = load_transcript(transcript_path)
+                    if isinstance(transcript, list) and len(transcript) > 0:
+                        return {"transcript": transcript}
+                except:
+                    # If that fails, try as plain text
+                    content = load_text_file(transcript_path)
+                    # Try to parse as Python list
+                    try:
+                        import ast
+                        parsed = ast.literal_eval(content.strip())
+                        if isinstance(parsed, list):
+                            return {"transcript": parsed}
+                    except:
+                        pass
+                    # Return as plain text if parsing fails
+                    return {"transcript": [("Speaker 1", content)]}
+            except Exception as e:
+                continue
+    
+    raise HTTPException(status_code=404, detail="Transcript not found")
+
+
 @router.get("/stream/{task_id}")
 async def stream_progress(task_id: str):
     """SSE stream for task progress"""
