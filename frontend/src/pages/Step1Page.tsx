@@ -29,16 +29,27 @@ export const Step1Page: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: '#f5f5f5' }}>
+    <div style={{ minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <header style={{ textAlign: 'center', marginBottom: '3rem', animation: 'fadeIn 0.6s ease-out' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div style={{ flex: 1 }}></div>
             <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#333' }}>
-                Podcast Generator
+              <h1 style={{ 
+                fontSize: '3rem', 
+                marginBottom: '0.5rem', 
+                color: 'white',
+                fontWeight: '700',
+                textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                letterSpacing: '-0.02em'
+              }}>
+                🎙️ Podcast Generator
               </h1>
-              <p style={{ fontSize: '1.2rem', color: '#666' }}>
+              <p style={{ 
+                fontSize: '1.25rem', 
+                color: 'rgba(255,255,255,0.9)',
+                textShadow: '0 1px 5px rgba(0,0,0,0.2)'
+              }}>
                 Transform your text into engaging podcast conversations
               </p>
             </div>
@@ -46,12 +57,27 @@ export const Step1Page: React.FC = () => {
               <Link
                 to="/settings"
                 style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#6c757d',
+                  padding: '0.625rem 1.25rem',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  backdropFilter: 'blur(10px)',
                   color: 'white',
                   textDecoration: 'none',
-                  borderRadius: '4px',
-                  fontSize: '0.9rem'
+                  borderRadius: '0.5rem',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)'
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'
+                  e.currentTarget.style.transform = 'translateY(0)'
                 }}
               >
                 ⚙️ Settings
@@ -61,7 +87,7 @@ export const Step1Page: React.FC = () => {
         </header>
 
         <Stepper currentStep={1} steps={STEPS} />
-        <div style={{ marginTop: '2rem' }}>
+        <div style={{ marginTop: '2rem', animation: 'fadeIn 0.8s ease-out 0.2s both' }}>
           <Step1Upload onSuccess={handleStep1Success} />
         </div>
       </div>

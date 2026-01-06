@@ -53,19 +53,30 @@ export const Step4Page: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: '#f5f5f5' }}>
+    <div style={{ minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#333' }}>
-            Podcast Generator
+        <header style={{ textAlign: 'center', marginBottom: '3rem', animation: 'fadeIn 0.6s ease-out' }}>
+          <h1 style={{ 
+            fontSize: '3rem', 
+            marginBottom: '0.5rem', 
+            color: 'white',
+            fontWeight: '700',
+            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+            letterSpacing: '-0.02em'
+          }}>
+            🎙️ Podcast Generator
           </h1>
-          <p style={{ fontSize: '1.2rem', color: '#666' }}>
+          <p style={{ 
+            fontSize: '1.25rem', 
+            color: 'rgba(255,255,255,0.9)',
+            textShadow: '0 1px 5px rgba(0,0,0,0.2)'
+          }}>
             Transform your text into engaging podcast conversations
           </p>
         </header>
 
         <Stepper currentStep={4} steps={STEPS} />
-        <div style={{ marginTop: '2rem' }}>
+        <div style={{ marginTop: '2rem', animation: 'fadeIn 0.8s ease-out 0.2s both' }}>
           <Step4Result
             taskId={currentTaskId}
             status={status}

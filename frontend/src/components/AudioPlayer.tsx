@@ -170,10 +170,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
   return (
     <div style={{
       width: '100%',
-      padding: '1rem',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      border: '1px solid #dee2e6'
+      padding: '1.5rem',
+      backgroundColor: 'white',
+      borderRadius: '0.75rem',
+      border: '2px solid #e5e7eb',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
     }}>
       <audio
         ref={audioRef}
@@ -192,25 +193,28 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
         <button
           onClick={togglePlay}
           style={{
-            width: '48px',
-            height: '48px',
+            width: '56px',
+            height: '56px',
             borderRadius: '50%',
             border: 'none',
-            backgroundColor: '#007bff',
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
             color: 'white',
-            fontSize: '1.5rem',
+            fontSize: '1.75rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            transition: 'background-color 0.2s'
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#0056b3'
+            e.currentTarget.style.transform = 'scale(1.05)'
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(99,102,241,0.4)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#007bff'
+            e.currentTarget.style.transform = 'scale(1)'
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.3)'
           }}
         >
           {isPlaying ? '⏸️' : '▶️'}
@@ -218,10 +222,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
 
         {/* Time Display */}
         <div style={{
-          fontSize: '0.9rem',
-          color: '#666',
+          fontSize: '1rem',
+          color: '#374151',
           fontFamily: 'monospace',
-          minWidth: '100px'
+          minWidth: '120px',
+          fontWeight: '500'
         }}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
@@ -237,13 +242,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
         onTouchEnd={handleProgressTouchEnd}
         style={{
           width: '100%',
-          height: '8px',
-          backgroundColor: '#dee2e6',
-          borderRadius: '4px',
+          height: '10px',
+          backgroundColor: '#e5e7eb',
+          borderRadius: '5px',
           cursor: 'pointer',
           position: 'relative',
           marginBottom: '0.5rem',
-          userSelect: 'none'
+          userSelect: 'none',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)'
         }}
       >
         {/* Progress Fill */}
@@ -251,25 +257,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
           style={{
             width: `${getProgressPercentage()}%`,
             height: '100%',
-            backgroundColor: '#007bff',
-            borderRadius: '4px',
+            background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)',
+            borderRadius: '5px',
             transition: isDragging ? 'none' : 'width 0.1s linear',
-            position: 'relative'
+            position: 'relative',
+            boxShadow: '0 2px 4px rgba(99,102,241,0.2)'
           }}
         >
           {/* Progress Handle */}
           <div
             style={{
               position: 'absolute',
-              right: '-6px',
+              right: '-8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              width: '16px',
-              height: '16px',
+              width: '20px',
+              height: '20px',
               borderRadius: '50%',
-              backgroundColor: '#007bff',
-              border: '2px solid white',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              border: '3px solid white',
+              boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
               cursor: isDragging ? 'grabbing' : 'grab',
               transition: isDragging ? 'none' : 'all 0.1s',
               pointerEvents: 'auto'

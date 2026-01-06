@@ -381,17 +381,34 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
     <div style={{ 
       maxWidth: '900px', 
       margin: '0 auto', 
-      padding: '2rem',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      padding: '2.5rem',
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      backdropFilter: 'blur(10px)',
+      borderRadius: '1rem',
+      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+      border: '1px solid rgba(255,255,255,0.2)'
     }}>
-      <h2 style={{ marginBottom: '1rem', textAlign: 'center' }}>Step 4: Your Podcast</h2>
+      <h2 style={{ 
+        marginBottom: '1.5rem', 
+        textAlign: 'center',
+        fontSize: '2rem',
+        fontWeight: '700',
+        color: '#1f2937',
+        letterSpacing: '-0.02em'
+      }}>
+        Step 4: Your Podcast
+      </h2>
 
       {!isCompleted && (
         <>
           <ProgressBar status={status} />
-          <p style={{ textAlign: 'center', color: '#666', marginTop: '1rem' }}>
+          <p style={{ 
+            textAlign: 'center', 
+            color: 'rgba(255,255,255,0.9)', 
+            marginTop: '1.5rem',
+            fontSize: '1.05rem',
+            textShadow: '0 1px 3px rgba(0,0,0,0.2)'
+          }}>
             Please wait while we generate your podcast...
           </p>
         </>
@@ -401,22 +418,35 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
         <>
           <div style={{
             marginBottom: '2rem',
-            padding: '1.5rem',
-            backgroundColor: '#f0f8ff',
-            borderRadius: '8px',
-            border: '2px solid #28a745'
+            padding: '2rem',
+            background: 'linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%)',
+            borderRadius: '1rem',
+            border: '3px solid #10b981',
+            boxShadow: '0 10px 15px -3px rgba(16,185,129,0.2)'
           }}>
-            <h3 style={{ marginBottom: '1rem', color: '#28a745', textAlign: 'center' }}>
-              ✓ Podcast Generated Successfully!
+            <h3 style={{ 
+              marginBottom: '1.5rem', 
+              color: '#059669', 
+              textAlign: 'center',
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ fontSize: '1.75rem' }}>✓</span>
+              Podcast Generated Successfully!
             </h3>
             
             {/* Audio Player - Always show when completed */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ 
                 display: 'block', 
-                marginBottom: '0.5rem',
-                fontWeight: '500',
-                fontSize: '1.1rem'
+                marginBottom: '0.75rem',
+                fontWeight: '600',
+                fontSize: '1.15rem',
+                color: '#374151'
               }}>
                 🎧 Listen to your podcast:
               </label>
@@ -429,13 +459,18 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                 />
               ) : (
                 <div style={{ 
-                  padding: '1rem', 
-                  backgroundColor: '#fff3cd', 
-                  border: '1px solid #ffc107',
-                  borderRadius: '4px',
-                  color: '#856404'
+                  padding: '1.25rem', 
+                  backgroundColor: '#fef3c7', 
+                  border: '2px solid #f59e0b',
+                  borderRadius: '0.5rem',
+                  color: '#92400e',
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}>
-                  Audio file is being prepared. Please try refreshing the page in a moment.
+                  <span>⏳</span>
+                  <span>Audio file is being prepared. Please try refreshing the page in a moment.</span>
                 </div>
               )}
             </div>
@@ -446,19 +481,19 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                 <div style={{ marginBottom: '2rem' }}>
                   <h3 style={{ 
                     marginBottom: '1rem', 
-                    fontSize: '1.2rem',
-                    fontWeight: '600',
-                    color: '#333'
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    color: '#374151'
                   }}>
                     📝 Podcast Script:
                   </h3>
                   <div style={{
                     maxHeight: '600px',
                     overflowY: 'auto',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    backgroundColor: '#f9f9f9'
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.75rem',
+                    padding: '1.5rem',
+                    backgroundColor: '#f9fafb'
                   }}>
                     {transcript.map(([speaker, text], index) => {
                       // Check if speaker is Speaker 1 or 講者 1 (support both English and Chinese)
@@ -490,13 +525,14 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                         <div 
                           key={index}
                           style={{
-                            marginBottom: '1rem',
-                            padding: '0.75rem',
+                            marginBottom: '1.25rem',
+                            padding: '1rem',
                             backgroundColor: currentStyle.backgroundColor,
-                            borderRadius: '4px',
+                            borderRadius: '0.5rem',
                             borderLeft: currentStyle.borderLeft,
-                            border: `1px solid ${currentStyle.borderColor}`,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            border: `2px solid ${currentStyle.borderColor}`,
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                            transition: 'all 0.2s ease'
                           }}
                         >
                           <div style={{
@@ -606,7 +642,16 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
             )}
 
             {loadingTranscript && (
-              <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#666' }}>
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '2rem', 
+                color: '#6b7280',
+                padding: '1rem',
+                backgroundColor: '#f9fafb',
+                borderRadius: '0.5rem',
+                fontSize: '0.95rem'
+              }}>
+                <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: '0.5rem' }}>⏳</span>
                 Loading transcript...
               </div>
             )}
@@ -615,22 +660,34 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
               display: 'flex', 
               gap: '1rem', 
               justifyContent: 'center',
-              flexWrap: 'wrap'
+              flexWrap: 'wrap',
+              marginBottom: '2rem'
             }}>
               <button
                 onClick={handleDownloadAudio}
                 style={{
-                  padding: '0.75rem 2rem',
-                  backgroundColor: '#28a745',
+                  padding: '0.875rem 2rem',
+                  backgroundColor: '#10b981',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '0.5rem',
                   fontSize: '1rem',
-                  fontWeight: '500',
+                  fontWeight: '600',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#059669'
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(16,185,129,0.3)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#10b981'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
                 }}
               >
                 <span>📥</span>
@@ -641,18 +698,32 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                 onClick={handleDownloadTranscript}
                 disabled={isGeneratingPDF || transcript.length === 0}
                 style={{
-                  padding: '0.75rem 2rem',
-                  backgroundColor: isGeneratingPDF ? '#6c757d' : '#007bff',
+                  padding: '0.875rem 2rem',
+                  backgroundColor: isGeneratingPDF || transcript.length === 0 ? '#d1d5db' : '#6366f1',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '0.5rem',
                   fontSize: '1rem',
-                  fontWeight: '500',
-                  cursor: isGeneratingPDF ? 'not-allowed' : 'pointer',
+                  fontWeight: '600',
+                  cursor: isGeneratingPDF || transcript.length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  opacity: isGeneratingPDF ? 0.6 : 1
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isGeneratingPDF && transcript.length > 0) {
+                    e.currentTarget.style.backgroundColor = '#4f46e5'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(99,102,241,0.3)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isGeneratingPDF && transcript.length > 0) {
+                    e.currentTarget.style.backgroundColor = '#6366f1'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }
                 }}
               >
                 <span>{isGeneratingPDF ? '⏳' : '📄'}</span>
@@ -665,16 +736,31 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
             <button
               onClick={onNewPodcast}
               style={{
-                padding: '0.75rem 2rem',
-                backgroundColor: '#6c757d',
+                padding: '0.875rem 2rem',
+                backgroundColor: '#6b7280',
                 color: 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '0.5rem',
                 fontSize: '1rem',
-                fontWeight: '500',
-                cursor: 'pointer'
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#4b5563'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#6b7280'
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
               }}
             >
+              <span>✨</span>
               Create Another Podcast
             </button>
           </div>

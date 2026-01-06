@@ -55,23 +55,37 @@ export const SettingsPage: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', padding: '2rem', backgroundColor: '#f5f5f5' }}>
+    <div style={{ minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#333' }}>
-            Voice Settings
+        <header style={{ textAlign: 'center', marginBottom: '3rem', animation: 'fadeIn 0.6s ease-out' }}>
+          <h1 style={{ 
+            fontSize: '3rem', 
+            marginBottom: '0.5rem', 
+            color: 'white',
+            fontWeight: '700',
+            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+            letterSpacing: '-0.02em'
+          }}>
+            ⚙️ Voice Settings
           </h1>
-          <p style={{ fontSize: '1.2rem', color: '#666' }}>
+          <p style={{ 
+            fontSize: '1.25rem', 
+            color: 'rgba(255,255,255,0.9)',
+            textShadow: '0 1px 5px rgba(0,0,0,0.2)'
+          }}>
             Choose voices for your podcast speakers (both speakers can choose any voice)
           </p>
         </header>
 
         <div style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '2rem',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          marginBottom: '2rem'
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '1rem',
+          padding: '2.5rem',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          marginBottom: '2rem',
+          animation: 'fadeIn 0.8s ease-out 0.2s both'
         }}>
           {/* Current Settings */}
           <div style={{ marginBottom: '2rem' }}>
@@ -342,16 +356,31 @@ export const SettingsPage: React.FC = () => {
             <button
               onClick={() => navigate('/')}
               style={{
-                padding: '0.75rem 2rem',
-                backgroundColor: '#007bff',
+                padding: '0.875rem 2rem',
+                backgroundColor: '#6366f1',
                 color: 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '0.5rem',
                 fontSize: '1rem',
-                fontWeight: '500',
-                cursor: 'pointer'
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#4f46e5'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(99,102,241,0.3)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#6366f1'
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
               }}
             >
+              <span>←</span>
               Back to Home
             </button>
           </div>
