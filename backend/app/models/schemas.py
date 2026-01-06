@@ -20,12 +20,18 @@ class TaskStatus(str, Enum):
 class UploadRequest(BaseModel):
     """Request model for text upload"""
     text: str
+    podcast_length_mode: Optional[str] = "MEDIUM"  # SHORT | MEDIUM | LONG
 
 
 class UploadResponse(BaseModel):
     """Response model for upload"""
     task_id: str
     message: str
+
+
+class Step1Request(BaseModel):
+    """Request model for step 1 (generate initial transcript)"""
+    podcast_length_mode: Optional[str] = "MEDIUM"  # SHORT | MEDIUM | LONG
 
 
 class Step1Response(BaseModel):

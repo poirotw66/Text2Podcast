@@ -14,6 +14,7 @@ const api = axios.create({
 
 export interface UploadRequest {
   text: string
+  podcast_length_mode?: 'SHORT' | 'MEDIUM' | 'LONG'
 }
 
 export interface UploadResponse {
@@ -35,8 +36,11 @@ export const podcastApi = {
   /**
    * Upload text content and start podcast generation
    */
-  async uploadText(text: string): Promise<UploadResponse> {
-    const response = await api.post<UploadResponse>('/api/upload', { text })
+  async uploadText(text: string, podcastLengthMode: 'SHORT' | 'MEDIUM' | 'LONG' = 'MEDIUM'): Promise<UploadResponse> {
+    const response = await api.post<UploadResponse>('/api/upload', { 
+      text,
+      podcast_length_mode: podcastLengthMode
+    })
     return response.data
   },
 
@@ -72,8 +76,10 @@ export const podcastApi = {
   /**
    * Step 1: Generate initial transcript
    */
-  async step1GenerateInitialTranscript(taskId: string): Promise<{ task_id: string; initial_transcript: string; message: string }> {
-    const response = await api.post(`/api/step1/${taskId}`)
+  async step1GenerateInitialTranscript(taskId: string, podcastLengthMode?: 'SHORT' | 'MEDIUM' | 'LONG'): Promise<{ task_id: string; initial_transcript: string; message: string }> {
+    const response = await api.post(`/api/step1/${taskId}`, {
+      podcast_length_mode: podcastLengthMode
+    })
     return response.data
   },
 

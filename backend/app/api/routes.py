@@ -10,7 +10,7 @@ from typing import Dict, Optional
 
 from app.models.schemas import (
     UploadRequest, UploadResponse, TaskStatusResponse, TaskStatus, ProgressEvent,
-    Step1Response, Step2Request, Step2Response, Step3Request
+    Step1Request, Step1Response, Step2Request, Step2Response, Step3Request
 )
 from app.services.task_manager import get_task_manager
 from app.services.transcript_service import get_transcript_service
@@ -127,7 +127,7 @@ async def upload_text(request: UploadRequest):
 
 
 @router.post("/step1/{task_id}", response_model=Step1Response)
-async def step1_generate_initial_transcript(task_id: str):
+async def step1_generate_initial_transcript(task_id: str, request: Step1Request):
     """Step 1: Generate initial podcast transcript from text"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
@@ -142,9 +142,15 @@ async def step1_generate_initial_transcript(task_id: str):
             task_id, TaskStatus.STEP1, 30, "Generating initial transcript..."
         )
         
+        # Get podcast length mode from request, default to MEDIUM
+        podcast_length_mode = request.podcast_length_mode or "MEDIUM"
+        
         # Only generate initial transcript (first step of transcript_service)
         llm_service = transcript_service.llm_service
-        initial_transcript = llm_service.generate_initial_transcript(task.text_content)
+        initial_transcript = llm_service.generate_initial_transcript(
+            task.text_content, 
+            podcast_length_mode=podcast_length_mode
+        )
         
         # Save initial transcript
         task_output_dir = OUTPUTS_DIR / task_id

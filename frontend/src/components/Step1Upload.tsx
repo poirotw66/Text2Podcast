@@ -2,11 +2,14 @@ import React, { useState } from 'react'
 import { podcastApi } from '../services/api'
 
 interface Step1UploadProps {
-  onSuccess: (taskId: string) => void
+  onSuccess: (taskId: string, podcastLengthMode: 'SHORT' | 'MEDIUM' | 'LONG') => void
 }
+
+type PodcastLengthMode = 'SHORT' | 'MEDIUM' | 'LONG'
 
 export const Step1Upload: React.FC<Step1UploadProps> = ({ onSuccess }) => {
   const [text, setText] = useState('')
+  const [podcastLengthMode, setPodcastLengthMode] = useState<PodcastLengthMode>('MEDIUM')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,8 +25,8 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({ onSuccess }) => {
     setError(null)
 
     try {
-      const response = await podcastApi.uploadText(text)
-      onSuccess(response.task_id)
+      const response = await podcastApi.uploadText(text, podcastLengthMode)
+      onSuccess(response.task_id, podcastLengthMode)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to upload text. Please try again.')
       setIsLoading(false)
@@ -45,6 +48,39 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({ onSuccess }) => {
       </p>
       
       <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: '1rem' }}>
+          <label 
+            htmlFor="podcast-length-mode" 
+            style={{ 
+              display: 'block', 
+              marginBottom: '0.5rem',
+              fontWeight: '500'
+            }}
+          >
+            Podcast 長度模式:
+          </label>
+          <select
+            id="podcast-length-mode"
+            value={podcastLengthMode}
+            onChange={(e) => setPodcastLengthMode(e.target.value as PodcastLengthMode)}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              fontSize: '1rem',
+              fontFamily: 'inherit',
+              backgroundColor: 'white',
+              cursor: isLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <option value="SHORT">SHORT（約 7 分鐘）</option>
+            <option value="MEDIUM">MEDIUM（約 15 分鐘）</option>
+            <option value="LONG">LONG（約 30 分鐘）</option>
+          </select>
+        </div>
+
         <div style={{ marginBottom: '1rem' }}>
           <label 
             htmlFor="text-input" 

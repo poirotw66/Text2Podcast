@@ -16,10 +16,10 @@ export const Step1Page: React.FC = () => {
   const navigate = useNavigate()
   const { setTaskId, setInitialTranscript } = usePodcastContext()
 
-  const handleStep1Success = async (newTaskId: string) => {
+  const handleStep1Success = async (newTaskId: string, podcastLengthMode: 'SHORT' | 'MEDIUM' | 'LONG') => {
     setTaskId(newTaskId)
     try {
-      const response = await podcastApi.step1GenerateInitialTranscript(newTaskId)
+      const response = await podcastApi.step1GenerateInitialTranscript(newTaskId, podcastLengthMode)
       setInitialTranscript(response.initial_transcript)
       navigate(`/edit/${newTaskId}`)
     } catch (error: any) {

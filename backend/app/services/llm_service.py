@@ -53,17 +53,23 @@ class LLMService:
             )
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini-2024-07-18")
     
-    def generate_initial_transcript(self, text_content: str) -> str:
+    def generate_initial_transcript(self, text_content: str, podcast_length_mode: str = "MEDIUM") -> str:
         """
         Generate initial podcast transcript from text content
         
         Args:
             text_content: Input text content
+            podcast_length_mode: Podcast length mode (SHORT | MEDIUM | LONG)
             
         Returns:
             Initial transcript as string
         """
-        prompt = f"{TRANSCRIPT_WRITER_PROMPT}\n\nContent to convert:\n{text_content}"
+        # Replace {SHORT | MEDIUM | LONG} in prompt with actual mode
+        prompt_template = TRANSCRIPT_WRITER_PROMPT.replace(
+            "{SHORT | MEDIUM | LONG}", 
+            podcast_length_mode.upper()
+        )
+        prompt = f"{prompt_template}\n\nContent to convert:\n{text_content}"
         
         try:
             # Build request parameters
