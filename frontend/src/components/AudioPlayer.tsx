@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import { PlayIcon, PauseIcon } from './icons'
 
 interface AudioPlayerProps {
   src: string
@@ -217,7 +218,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, onError }) => {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.3)'
           }}
         >
-          {isPlaying ? '⏸️' : '▶️'}
+          {isPlaying ? <PauseIcon size={24} /> : <PlayIcon size={24} />}
         </button>
 
         {/* Time Display */}

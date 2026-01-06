@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { EditIcon, TrashIcon, PlusIcon, ArrowLeftIcon, MicrophoneIcon, LoaderIcon } from './icons'
 
 interface Step3ConfirmProps {
   optimizedTranscript: Array<[string, string]>
@@ -71,15 +72,11 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
   }
 
   return (
-    <div style={{ 
+    <div className="glass-card" style={{ 
       maxWidth: '900px', 
       margin: '0 auto', 
       padding: '2.5rem',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      backdropFilter: 'blur(10px)',
-      borderRadius: '1rem',
-      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-      border: '1px solid rgba(255,255,255,0.2)'
+      borderRadius: '1rem'
     }}>
       <h2 style={{ 
         marginBottom: '0.75rem', 
@@ -192,7 +189,8 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
                         e.currentTarget.style.transform = 'translateY(0)'
                       }}
                     >
-                      ✏️ Edit
+                      <EditIcon size={16} />
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDelete(index)}
@@ -220,7 +218,8 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
                         e.currentTarget.style.transform = 'translateY(0)'
                       }}
                     >
-                      🗑️ Delete
+                      <TrashIcon size={16} />
+                      Delete
                     </button>
                     <button
                       onClick={() => handleAddNew(index, speaker)}
@@ -248,7 +247,8 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
                         e.currentTarget.style.transform = 'translateY(0)'
                       }}
                     >
-                      ➕ Add
+                      <PlusIcon size={16} />
+                      Add
                     </button>
                   </div>
                 )}
@@ -383,7 +383,7 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
             }
           }}
         >
-          <span>←</span>
+          <ArrowLeftIcon size={18} />
           Back
         </button>
         <button
@@ -422,12 +422,12 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
         >
           {isGenerating ? (
             <>
-              <span style={{ animation: 'spin 1s linear infinite' }}>⏳</span>
+              <LoaderIcon size={20} />
               Generating Podcast...
             </>
           ) : (
             <>
-              <span>🎙️</span>
+              <MicrophoneIcon size={20} />
               Generate Podcast
             </>
           )}

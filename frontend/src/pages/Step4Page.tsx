@@ -4,6 +4,7 @@ import { Stepper } from '../components/Stepper'
 import { Step4Result } from '../components/Step4Result'
 import { useProgress } from '../hooks/useProgress'
 import { usePodcastContext } from '../contexts/PodcastContext'
+import { MicrophoneIcon } from '../components/icons'
 
 const STEPS = [
   'Upload Content',
@@ -56,16 +57,19 @@ export const Step4Page: React.FC = () => {
     <div style={{ minHeight: '100vh', padding: '2rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <header style={{ textAlign: 'center', marginBottom: '3rem', animation: 'fadeIn 0.6s ease-out' }}>
-          <h1 style={{ 
-            fontSize: '3rem', 
-            marginBottom: '0.5rem', 
-            color: 'white',
-            fontWeight: '700',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)',
-            letterSpacing: '-0.02em'
-          }}>
-            🎙️ Podcast Generator
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+            <MicrophoneIcon size={48} style={{ color: 'white', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+            <h1 style={{ 
+              fontSize: '3rem', 
+              marginBottom: '0.5rem', 
+              color: 'white',
+              fontWeight: '700',
+              textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+              letterSpacing: '-0.02em'
+            }}>
+              Podcast Generator
+            </h1>
+          </div>
           <p style={{ 
             fontSize: '1.25rem', 
             color: 'rgba(255,255,255,0.9)',

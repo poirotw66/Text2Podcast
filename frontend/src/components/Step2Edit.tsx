@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { podcastApi } from '../services/api'
+import { RefreshIcon, LoaderIcon, ArrowLeftIcon, ArrowRightIcon } from './icons'
 
 interface Step2EditProps {
   taskId: string
@@ -41,15 +42,11 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
   }
 
   return (
-    <div style={{ 
+    <div className="glass-card" style={{ 
       maxWidth: '900px', 
       margin: '0 auto', 
       padding: '2.5rem',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      backdropFilter: 'blur(10px)',
-      borderRadius: '1rem',
-      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-      border: '1px solid rgba(255,255,255,0.2)'
+      borderRadius: '1rem'
     }}>
       <h2 style={{ 
         marginBottom: '0.75rem', 
@@ -103,19 +100,19 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
         >
           {isRegenerating ? (
             <>
-              <span style={{ animation: 'spin 1s linear infinite' }}>⏳</span>
+              <LoaderIcon size={18} />
               Regenerating...
             </>
           ) : (
             <>
-              <span>🔄</span>
+              <RefreshIcon size={18} />
               Regenerate Script
             </>
           )}
         </button>
       </div>
 
-      {error && (
+          {error && (
         <div style={{
           padding: '1rem',
           marginBottom: '1.5rem',
@@ -127,8 +124,12 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
-        }}>
-          <span>⚠️</span>
+        }} role="alert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
           <span>{error}</span>
         </div>
       )}
@@ -205,7 +206,7 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
             e.currentTarget.style.boxShadow = 'none'
           }}
         >
-          <span>←</span>
+          <ArrowLeftIcon size={18} />
           Back
         </button>
         <button
@@ -243,7 +244,7 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
           }}
         >
           Optimize Script
-          <span>→</span>
+          <ArrowRightIcon size={18} />
         </button>
       </div>
     </div>

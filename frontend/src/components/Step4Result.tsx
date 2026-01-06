@@ -5,6 +5,7 @@ import { AudioPlayer } from './AudioPlayer'
 import { TaskStatus } from '../services/api'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { DownloadIcon, FileTextIcon, CheckIcon, HeadphonesIcon, SparklesIcon, LoaderIcon } from './icons'
 
 interface Step4ResultProps {
   taskId: string
@@ -378,15 +379,11 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
   }, [isCompleted, taskId, transcript.length, loadingTranscript])
 
   return (
-    <div style={{ 
+    <div className="glass-card" style={{ 
       maxWidth: '900px', 
       margin: '0 auto', 
       padding: '2.5rem',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      backdropFilter: 'blur(10px)',
-      borderRadius: '1rem',
-      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-      border: '1px solid rgba(255,255,255,0.2)'
+      borderRadius: '1rem'
     }}>
       <h2 style={{ 
         marginBottom: '1.5rem', 
@@ -435,20 +432,23 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
               justifyContent: 'center',
               gap: '0.5rem'
             }}>
-              <span style={{ fontSize: '1.75rem' }}>✓</span>
+              <CheckIcon size={28} />
               Podcast Generated Successfully!
             </h3>
             
             {/* Audio Player - Always show when completed */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ 
-                display: 'block', 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
                 marginBottom: '0.75rem',
                 fontWeight: '600',
                 fontSize: '1.15rem',
                 color: '#374151'
               }}>
-                🎧 Listen to your podcast:
+                <HeadphonesIcon size={20} />
+                Listen to your podcast:
               </label>
               {audioUrl ? (
                 <AudioPlayer
@@ -469,7 +469,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}>
-                  <span>⏳</span>
+                  <LoaderIcon size={20} />
                   <span>Audio file is being prepared. Please try refreshing the page in a moment.</span>
                 </div>
               )}
@@ -483,9 +483,13 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                     marginBottom: '1rem', 
                     fontSize: '1.3rem',
                     fontWeight: '700',
-                    color: '#374151'
+                    color: '#374151',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
                   }}>
-                    📝 Podcast Script:
+                    <FileTextIcon size={24} />
+                    Podcast Script:
                   </h3>
                   <div style={{
                     maxHeight: '600px',
@@ -649,9 +653,13 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                 padding: '1rem',
                 backgroundColor: '#f9fafb',
                 borderRadius: '0.5rem',
-                fontSize: '0.95rem'
+                fontSize: '0.95rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
               }}>
-                <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: '0.5rem' }}>⏳</span>
+                <LoaderIcon size={20} />
                 Loading transcript...
               </div>
             )}
@@ -690,7 +698,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                   e.currentTarget.style.boxShadow = 'none'
                 }}
               >
-                <span>📥</span>
+                <DownloadIcon size={20} />
                 Download Audio (MP3)
               </button>
 
@@ -726,7 +734,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                   }
                 }}
               >
-                <span>{isGeneratingPDF ? '⏳' : '📄'}</span>
+                {isGeneratingPDF ? <LoaderIcon size={20} /> : <FileTextIcon size={20} />}
                 {isGeneratingPDF ? 'Generating PDF...' : 'Download Transcript (PDF)'}
               </button>
             </div>
@@ -760,7 +768,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
                 e.currentTarget.style.boxShadow = 'none'
               }}
             >
-              <span>✨</span>
+              <SparklesIcon size={20} />
               Create Another Podcast
             </button>
           </div>
