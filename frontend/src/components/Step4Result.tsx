@@ -136,7 +136,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
 
       // Smart pagination: ensure dialogue boxes are not cut
       // pageBreaks are in original DOM pixels
-      const pageBreaks: number[] = [0] // Start positions for each page (in original DOM pixels)
+      let pageBreaks: number[] = [0] // Start positions for each page (in original DOM pixels)
       
       // Convert usableHeight from mm to original DOM pixels
       const mmToPx = (mm: number) => {
@@ -194,16 +194,23 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
       }
       
       // Calculate the actual content end in original DOM pixels
-      // Use the maximum of: last box bottom, originalHeight, or canvas height converted back
+      // Use the maximum of: last box bottom or originalHeight (but not canvas height to avoid blank space)
       let contentEndPx = originalHeight
       if (boxPositions.length > 0) {
         const lastBoxBottom = boxPositions[boxPositions.length - 1].bottom
-        // No padding - use exact last box bottom
-        contentEndPx = Math.max(contentEndPx, lastBoxBottom)
+        // Add small margin to ensure last box is fully visible
+        contentEndPx = Math.max(contentEndPx, lastBoxBottom + 10) // Add 10px margin
       }
-      // Also ensure we use the full canvas height
-      const canvasHeightInOriginalPx = canvas.height / html2canvasScale
-      contentEndPx = Math.max(contentEndPx, canvasHeightInOriginalPx)
+      // Don't use canvas.height here - it may include extra blank space
+      // Instead, use the actual content height from the DOM element
+      
+      // Filter out page breaks that are beyond or equal to content end (prevents blank last page)
+      pageBreaks = pageBreaks.filter(breakPos => breakPos < contentEndPx)
+      
+      // Ensure we have at least one page break (at 0)
+      if (pageBreaks.length === 0) {
+        pageBreaks = [0]
+      }
       
       // Debug: log page breaks and box positions to verify
       console.log('Page breaks:', pageBreaks)
@@ -237,10 +244,6 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
       
       // Generate pages - verify no dialogue boxes are cut
       for (let i = 0; i < pageBreaks.length; i++) {
-        if (i > 0) {
-          pdf.addPage()
-        }
-        
         // pageBreaks are in original DOM pixels, convert to canvas pixels
         const startYOriginal = pageBreaks[i]
         
@@ -252,6 +255,11 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
         } else {
           // Last page: use the calculated content end, ensuring we include everything
           endYOriginal = contentEndPx
+        }
+        
+        // Ensure endYOriginal is greater than startYOriginal (prevents blank page)
+        if (endYOriginal <= startYOriginal) {
+          continue // Skip this page if it would be empty
         }
         
         // Verify no dialogue box is cut by this page
@@ -266,25 +274,42 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
           }
         }
         
-        // Convert to canvas coordinates (scale 1.5)
-        const startYCanvas = startYOriginal * html2canvasScale
-        let endYCanvas = endYOriginal * html2canvasScale
-        
-        // For the last page, make sure we use the full canvas height if needed
-        if (i === pageBreaks.length - 1) {
-          // Last page: ensure we capture everything up to canvas height
-          endYCanvas = Math.max(endYCanvas, canvas.height)
+        // Double-check: ensure endYOriginal is still greater than startYOriginal after adjustments
+        if (endYOriginal <= startYOriginal) {
+          continue // Skip this page if it would be empty
         }
         
-        // Make sure we don't exceed canvas height
+        // Convert to canvas coordinates (scale 1.5)
+        let startYCanvas = startYOriginal * html2canvasScale
+        let endYCanvas = endYOriginal * html2canvasScale
+        
+        // Ensure we don't exceed canvas height (prevents blank space)
         endYCanvas = Math.min(endYCanvas, canvas.height)
+        
+        // Ensure startYCanvas doesn't exceed canvas height (prevents blank last page)
+        startYCanvas = Math.min(startYCanvas, canvas.height)
         
         // Calculate actual page height in canvas pixels
         const actualPageHeightCanvas = endYCanvas - startYCanvas
         
-        // Ensure pageHeight is positive
-        if (actualPageHeightCanvas <= 0) {
-          continue // Skip empty pages
+        // For the last page, check if it would be empty or too small BEFORE adding page
+        if (i === pageBreaks.length - 1) {
+          // Last page: ensure it has meaningful content (at least 50 pixels to avoid blank page)
+          if (actualPageHeightCanvas <= 50) {
+            console.warn(`Skipping last page: height too small (${actualPageHeightCanvas}px), startY: ${startYCanvas}, endY: ${endYCanvas}, canvas.height: ${canvas.height}`)
+            continue // Skip if last page would be too small or empty
+          }
+        } else {
+          // For non-last pages, ensure minimum height of 10 pixels
+          if (actualPageHeightCanvas <= 10) {
+            console.warn(`Skipping page ${i + 1}: height too small (${actualPageHeightCanvas}px)`)
+            continue // Skip empty or too-small pages
+          }
+        }
+        
+        // Add page only if we have valid content
+        if (i > 0) {
+          pdf.addPage()
         }
         
         // Calculate PDF dimensions - convert canvas pixels back to original pixels, then to mm
