@@ -9,3 +9,7 @@ backend/outputs/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Cursor IDE folders
+.cursor/
+.shared/
