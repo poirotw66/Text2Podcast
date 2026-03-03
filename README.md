@@ -1,6 +1,8 @@
-# PPT2Video - Podcast 生成工具
+# Text2Podcast - Podcast 生成工具
 
 一個全端 Podcast 生成應用程式，可從文字內容自動生成專業的 Podcast 音訊。使用 AI 技術將文字轉換為自然流暢的對話式 Podcast，支援多種長度模式和語音設定。
+
+> **專案命名說明**：本專案原名 PPT2Video，實際功能為「文字 → Podcast」，故建議使用 **Text2Podcast** 或 **Podcast Generator**（與 Web 介面標題一致）。若需保留原 repo 名稱可僅更新 README 標題與描述。
 
 ## ✨ 功能特色
 
@@ -12,10 +14,49 @@
 - 📊 **即時進度追蹤**：透過 Server-Sent Events (SSE) 即時顯示處理進度
 - 💾 **完整輸出管理**：自動合併音訊檔案並提供下載功能
 
+## 🖼️ 功能截圖
+
+以下為各步驟與設定頁的畫面說明與截圖（圖片位於 `images/`）。
+
+### Step 1：上傳內容
+
+- **路徑**：`/`
+- **功能**：輸入或貼上欲轉成 Podcast 的文字，選擇長度模式（SHORT / MEDIUM / LONG），點擊「開始生成」後由後端產生初始轉錄稿並跳轉至 Step 2。
+
+![Step 1 上傳內容](images/01-update.png)
+
+### Step 2：檢視與編輯轉錄稿
+
+- **路徑**：`/edit/:taskId`
+- **功能**：檢視 AI 生成的雙講者對話稿，可直接編輯文字或點擊「重新生成」再產生一版。確認後進入 Step 3 進行優化。
+
+![Step 2 檢視與編輯轉錄稿](images/02-edit.png)
+
+### Step 3：確認腳本與語音
+
+- **路徑**：`/confirm/:taskId`
+- **功能**：檢視優化後的逐句腳本（Speaker 1 / Speaker 2），可單句編輯、刪除或插入新句。確認語音設定後點擊「開始生成音訊」進入 Step 4。
+
+![Step 3 確認腳本與語音](images/03-confirm.png)
+
+### Step 4：生成與下載
+
+- **路徑**：`/result/:taskId`
+- **功能**：透過 SSE 即時顯示合成進度；完成後可試聽、下載合併後的 MP3 及轉錄稿（PDF），或「建立新 Podcast」回到 Step 1。
+
+![Step 4 生成與下載](images/04-result.png)
+
+### 設定頁：語音選擇
+
+- **路徑**：`/settings`
+- **功能**：為 Speaker 1、Speaker 2 選擇 TTS 語音，可試聽（Preview）、重置為預設、返回首頁。
+
+![設定頁語音選擇](images/05-setting.png)
+
 ## 🏗️ 專案架構
 
 ```
-PPT2Video/
+Text2Podcast/
 ├── backend/              # FastAPI 後端服務
 │   ├── app/
 │   │   ├── api/         # API 路由

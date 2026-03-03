@@ -54,7 +54,7 @@ export const Step3Confirm: React.FC<Step3ConfirmProps> = ({
   }
 
   const handleDelete = (index: number) => {
-    if (window.confirm('確定要刪除這個對話框嗎？')) {
+    if (window.confirm('Are you sure you want to delete this dialogue block?')) {
       const updated = editableTranscript.filter((_, i) => i !== index)
       setEditableTranscript(updated)
       if (onTranscriptChange) {
