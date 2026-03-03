@@ -245,6 +245,4 @@ outputs/{task_id}/
 
 歡迎提交 Issue 和 Pull Request！
 
-## 📄 授權
-
-本專案採用 MIT 授權。
+## 📄 授權本專案採用 MIT 授權。
