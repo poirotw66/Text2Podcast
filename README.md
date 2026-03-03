@@ -286,4 +286,6 @@ outputs/{task_id}/
 
 歡迎提交 Issue 和 Pull Request！
 
-## 📄 授權本專案採用 MIT 授權。
+## 📄 授權
+
+本專案採用 [MIT License](LICENSE)，授權署名 **poirotw66**。
