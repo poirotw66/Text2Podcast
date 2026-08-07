@@ -181,25 +181,26 @@ npm run preview
    - 預覽音訊檔案
    - 下載最終的 Podcast 音訊檔
 
-### 命令列使用（舊版）
+### 命令列使用（舊版，僅供參考）
 
-專案也提供命令列工具用於直接從轉錄檔生成音訊：
+專案早期提供的命令列工具已移至 `scripts/legacy/`，僅作為參考保留，
+目前維護的音訊生成邏輯在 `backend/app/services/audio_service.py`：
 
 ```bash
 # 基本使用
-python generate_audio.py example/3_enhance_transcipt.txt
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt
 
 # 指定輸出目錄
-python generate_audio.py example/3_enhance_transcipt.txt -o audio_output
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt -o audio_output
 
 # 使用標準模型（節省成本）
-python generate_audio.py example/3_enhance_transcipt.txt -m tts-1
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt -m tts-1
 
 # 生成並自動合併音訊
-python generate_audio.py example/3_enhance_transcipt.txt --merge
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt --merge
 
 # 完整參數範例
-python generate_audio.py example/3_enhance_transcipt.txt \
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt \
     -o audio_output \
     -m tts-1-hd \
     --merge \
