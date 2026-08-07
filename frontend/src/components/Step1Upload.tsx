@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 import { SparklesIcon, LoaderIcon } from './icons'
 
 interface Step1UploadProps {
@@ -28,8 +28,8 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({ onSuccess }) => {
     try {
       const response = await podcastApi.uploadText(text, podcastLengthMode)
       onSuccess(response.task_id, podcastLengthMode)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload text. Please try again.')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to upload text. Please try again.'))
       setIsLoading(false)
     }
   }

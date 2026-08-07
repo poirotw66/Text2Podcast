@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Stepper } from '../components/Stepper'
 import { Step1Upload } from '../components/Step1Upload'
 import { usePodcastContext } from '../contexts/PodcastContext'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 import { MicrophoneIcon, SettingsIcon } from '../components/icons'
 
 const STEPS = [
@@ -23,9 +23,9 @@ export const Step1Page: React.FC = () => {
       const response = await podcastApi.step1GenerateInitialTranscript(newTaskId, podcastLengthMode)
       setInitialTranscript(response.initial_transcript)
       navigate(`/edit/${newTaskId}`)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to generate initial transcript:', error)
-      alert(error.response?.data?.detail || 'Failed to generate initial transcript')
+      alert(getErrorMessage(error, 'Failed to generate initial transcript'))
     }
   }
 

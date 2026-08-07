@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 import { RefreshIcon, LoaderIcon, ArrowLeftIcon, ArrowRightIcon } from './icons'
 
 interface Step2EditProps {
@@ -30,8 +30,8 @@ export const Step2Edit: React.FC<Step2EditProps> = ({
     try {
       const response = await podcastApi.step1GenerateInitialTranscript(taskId)
       setEditedText(response.initial_transcript)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to regenerate transcript')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to regenerate transcript'))
     } finally {
       setIsRegenerating(false)
     }

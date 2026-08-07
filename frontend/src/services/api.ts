@@ -12,6 +12,21 @@ const api = axios.create({
   },
 })
 
+/**
+ * Extract a user-facing error message from a caught request error.
+ * Prefers the backend's `detail` field on axios errors, falling back
+ * to a caller-supplied default for anything else.
+ */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const detail = (err.response?.data as { detail?: string } | undefined)?.detail
+    if (detail) {
+      return detail
+    }
+  }
+  return fallback
+}
+
 export interface UploadRequest {
   text: string
   podcast_length_mode?: 'SHORT' | 'MEDIUM' | 'LONG'

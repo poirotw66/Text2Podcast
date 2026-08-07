@@ -3,7 +3,7 @@ import { podcastApi } from '../services/api'
 import { ProgressBar } from './ProgressBar'
 import { AudioPlayer } from './AudioPlayer'
 import { TaskStatus } from '../services/api'
-import html2canvas from 'html2canvas'
+import html2canvas from 'html2canvas-pro'
 import jsPDF from 'jspdf'
 import { DownloadIcon, FileTextIcon, CheckIcon, HeadphonesIcon, SparklesIcon, LoaderIcon } from './icons'
 
@@ -74,7 +74,7 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
         scale: 1.5, // Reduced from 2 to reduce file size
         allowTaint: false,
         removeContainer: false
-      } as any)
+      })
 
       // Restore original style immediately
       pdfRef.current.style.position = originalStyle.position

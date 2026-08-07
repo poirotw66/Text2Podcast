@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 
 interface UploadFormProps {
   onUploadSuccess: (taskId: string) => void
@@ -25,8 +25,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onUploadSuccess }) => {
       const response = await podcastApi.uploadText(text)
       onUploadSuccess(response.task_id)
       setText('') // Clear form
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload text. Please try again.')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to upload text. Please try again.'))
     } finally {
       setIsLoading(false)
     }
