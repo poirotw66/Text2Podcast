@@ -2,6 +2,31 @@
 
 FastAPI backend for generating podcasts from text content.
 
+## AI providers: two separate jobs, two separate configs
+
+This backend calls out to two different AI services for two different
+pipeline steps -- don't conflate them:
+
+- **Script writing** (Step 1 `generate_initial_transcript`, Step 2
+  `optimize_transcript`) -- `app/services/llm/`. **Pluggable**, selected by
+  `LLM_PROVIDER`:
+  - `gemini` (**default**) -- `GeminiLLMService`, via the `google-genai` SDK.
+    Needs `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), or falls back to Vertex AI
+    using `GOOGLE_CLOUD_PROJECT` + the same `GOOGLE_APPLICATION_CREDENTIALS`
+    service account already required for TTS below.
+  - `openai` -- `OpenAILLMService`, the original implementation, unchanged.
+    Needs `OPENAI_API_KEY`. Not read at all unless `LLM_PROVIDER=openai`.
+- **Text-to-speech** (Step 3, `app/services/audio_service.py`) -- **always**
+  Google Cloud TTS (`gemini-2.5-flash-tts`). Not affected by `LLM_PROVIDER`,
+  not configurable to any other provider. Needs
+  `GOOGLE_APPLICATION_CREDENTIALS`.
+
+So with the default configuration (`LLM_PROVIDER` unset, i.e. `gemini`), the
+whole backend runs on Google credentials alone -- no OpenAI key is read or
+required anywhere. See `.env.example` at the repo root for the full variable
+list, and `app/services/llm/base.py` / `gemini_service.py` / `openai_service.py`
+/ `factory.py` for the implementation.
+
 ## ⚠️ Deployment constraint: single process only
 
 `TaskManager` (`app/services/task_manager.py`) keeps all task state in an
@@ -48,25 +73,36 @@ merge audio segments (see `app/services/audio_service.py`); it's no longer
 pulled in transitively through `pydub`, which has been removed.
 
 2. Set environment variables — see [`.env.example`](../.env.example) at the
-   repo root for the full list with descriptions. The essentials:
+   repo root for the full list with descriptions. The essentials (default
+   provider, Gemini -- see "AI providers" above):
 
 ```bash
-export OPENAI_API_KEY=your_openai_api_key
 export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-export GOOGLE_CLOUD_PROJECT=your_project_id
+export GEMINI_API_KEY=your_gemini_api_key
 ```
 
 Or create a `.env` file in the backend directory (loaded automatically via
 `python-dotenv`):
 ```
-OPENAI_API_KEY=your_openai_api_key
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-GOOGLE_CLOUD_PROJECT=your_project_id
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+To use OpenAI for script writing instead (TTS stays Google either way):
+```
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 Notable optional variables (all documented in `.env.example`):
 
-- `OPENAI_MODEL` — defaults to `gpt-5-mini`.
+- `LLM_PROVIDER` — `gemini` (default) or `openai`; selects the script-writing
+  implementation (`app/services/llm/factory.py`).
+- `GEMINI_MODEL` — defaults to `gemini-2.5-flash`. `GOOGLE_CLOUD_PROJECT` /
+  `GOOGLE_CLOUD_LOCATION` configure the Vertex AI fallback used when no
+  `GEMINI_API_KEY`/`GOOGLE_API_KEY` is set.
+- `OPENAI_MODEL` — defaults to `gpt-5-mini`. Only relevant when
+  `LLM_PROVIDER=openai`.
 - `CORS_ALLOW_ORIGINS` — comma-separated allowed origins; defaults to the two
   local dev frontends. `allow_credentials` is only enabled when this isn't a
   wildcard, since browsers reject that combination outright.

@@ -6,13 +6,24 @@
 
 ## ✨ 功能特色
 
-- 📝 **智能轉錄生成**：使用 AI 將文字內容轉換為自然的 Podcast 對話稿
+- 📝 **智能轉錄生成**：使用 LLM 將文字內容轉換為自然的 Podcast 對話稿，**預設使用 Gemini**（`LLM_PROVIDER=gemini`），也可切換回 OpenAI（`LLM_PROVIDER=openai`）
 - 🎙️ **多種長度模式**：支援 SHORT（7 分鐘）、MEDIUM（15 分鐘）、LONG（30 分鐘）
-- 🔊 **高品質語音合成**：使用 Google Cloud TTS (Gemini 2.5 Flash) 生成自然語音
+- 🔊 **高品質語音合成**：使用 Google Cloud TTS (Gemini 2.5 Flash) 生成自然語音（固定使用 Google，非可選項）
 - 🎭 **雙講者對話**：支援兩個不同角色的講者進行對話
 - 🎨 **現代化 Web 介面**：React + TypeScript 建構的直觀使用者介面
 - 📊 **即時進度追蹤**：透過 Server-Sent Events (SSE) 即時顯示處理進度
 - 💾 **完整輸出管理**：自動合併音訊檔案並提供下載功能
+
+## 🤖 使用了哪些 AI 服務？
+
+本專案使用**兩個獨立的 AI 服務**，分別負責不同工作，**兩者都是 Google／OpenAI 這類第三方 API，不是同一個服務**：
+
+| 工作 | 服務 | 對應程式 | 所需憑證 |
+| --- | --- | --- | --- |
+| **腳本生成**（Step 1 產生逐字稿、Step 2 優化為講者分段） | **可切換**：預設 **Gemini**，也可設定 `LLM_PROVIDER=openai` 改用 **OpenAI** | `backend/app/services/llm/` | Gemini：`GEMINI_API_KEY`（或改用 Vertex AI：`GOOGLE_CLOUD_PROJECT` + 既有的 `GOOGLE_APPLICATION_CREDENTIALS`）。OpenAI：`OPENAI_API_KEY`（僅在 `LLM_PROVIDER=openai` 時需要） |
+| **語音合成**（Step 3 文字轉語音） | **固定為 Google Cloud TTS**（`gemini-2.5-flash-tts`），不受 `LLM_PROVIDER` 影響，也無法切換 | `backend/app/services/audio_service.py` | `GOOGLE_APPLICATION_CREDENTIALS`（Google Cloud 服務帳戶金鑰） |
+
+也就是說：**預設情況下（`LLM_PROVIDER` 未設定 = `gemini`），整個專案只需要 Google 憑證即可運作**，不再強制要求 OpenAI API Key。完整環境變數說明見 [`.env.example`](.env.example)。
 
 ## 🖼️ 功能截圖
 
@@ -84,8 +95,11 @@ Text2Podcast/
 - Python 3.11+
 - Node.js 16+
 - **ffmpeg**（後端合併音訊片段時會直接呼叫 `ffmpeg` 執行檔，需安裝並在 `PATH` 中可找到）
-- Google Cloud 專案（用於 TTS API）
-- OpenAI API Key（用於轉錄生成）
+- Google Cloud 專案與服務帳戶金鑰（`GOOGLE_APPLICATION_CREDENTIALS`）：**必要**，用於語音合成（TTS API，固定使用 Google）
+- Gemini API Key（`GEMINI_API_KEY`，或改用 Vertex AI）：**預設腳本生成所需**（`LLM_PROVIDER=gemini`，預設值）
+- OpenAI API Key：**僅在**將 `LLM_PROVIDER` 改設為 `openai` 時才需要，預設不需要
+
+詳見上方「使用了哪些 AI 服務？」與 [`.env.example`](.env.example)。
 
 ### 後端設定
 
@@ -100,25 +114,31 @@ pip install -r requirements.txt
 
 2. **設定環境變數**
 
-建立 `.env` 檔案在 `backend/` 目錄下：
+建立 `.env` 檔案在 `backend/` 目錄下（**預設**：`LLM_PROVIDER=gemini`，腳本生成與語音合成都只需要 Google 憑證）：
 
 ```env
-OPENAI_API_KEY=your_openai_api_key
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-GOOGLE_CLOUD_PROJECT=your_project_id
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 或使用環境變數：
 
 ```bash
-export OPENAI_API_KEY=your_openai_api_key
 export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-export GOOGLE_CLOUD_PROJECT=your_project_id
+export GEMINI_API_KEY=your_gemini_api_key
 ```
 
-完整環境變數清單（含 `OPENAI_MODEL`、`CORS_ALLOW_ORIGINS`、`API_KEY`、速率限制與
-TaskManager 逾時等可選設定）請見專案根目錄的 [`.env.example`](.env.example)，
-以及 [`backend/README.md`](backend/README.md) 中的說明。
+若想改用 OpenAI 生成腳本（語音合成仍固定為 Google TTS），另外設定：
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key
+```
+
+完整環境變數清單（含 `LLM_PROVIDER`、`GEMINI_MODEL`、`GOOGLE_CLOUD_PROJECT`／
+`GOOGLE_CLOUD_LOCATION`（Vertex AI 備援）、`OPENAI_MODEL`、`CORS_ALLOW_ORIGINS`、
+`API_KEY`、速率限制與 TaskManager 逾時等可選設定）請見專案根目錄的
+[`.env.example`](.env.example)，以及 [`backend/README.md`](backend/README.md) 中的說明。
 
 3. **啟動後端服務**
 
@@ -275,9 +295,11 @@ outputs/{task_id}/
 
 ### 後端
 - **FastAPI** - 現代化的 Python Web 框架
-- **Google Cloud TTS** - 語音合成服務
-- **OpenAI API**（Responses API，`gpt-5-mini`）- AI 轉錄生成，使用 structured
-  outputs（JSON Schema）取得優化後的逐句腳本
+- **Google Cloud TTS**（`gemini-2.5-flash-tts`）- 語音合成服務，固定使用 Google，不可切換
+- **AI 轉錄生成**（腳本撰寫，`backend/app/services/llm/`）- 可切換供應商，經 `LLM_PROVIDER` 選擇：
+  - **Gemini**（預設，`google-genai` SDK，`gemini-2.5-flash`）
+  - **OpenAI**（`LLM_PROVIDER=openai`，Responses API，`gpt-5-mini`）
+  - 兩者皆使用 structured outputs（JSON Schema）取得優化後的逐句腳本
 - **ffmpeg**（透過 `subprocess` 直接呼叫）- 音訊合併處理，取代已停止維護且在
   Python 3.13 上會因 `audioop` 模組被移除而失效的 Pydub
 - **SSE-Starlette** - Server-Sent Events 支援
@@ -291,7 +313,9 @@ outputs/{task_id}/
 
 ## 📝 注意事項
 
-- 需要有效的 OpenAI API Key 和 Google Cloud 憑證
+- 需要有效的 Google Cloud 憑證（`GOOGLE_APPLICATION_CREDENTIALS`，語音合成必要，
+  且為預設 Gemini 腳本生成的備援憑證來源）；`OPENAI_API_KEY` 僅在
+  `LLM_PROVIDER=openai` 時才需要，預設（Gemini）不需要
 - 確保 Google Cloud 專案已啟用 Text-to-Speech API
 - 需安裝 `ffmpeg` 並在 `PATH` 中可找到（後端合併音訊片段時會直接呼叫）
 - 音訊生成可能需要一些時間，取決於內容長度

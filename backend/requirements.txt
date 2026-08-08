@@ -13,9 +13,15 @@
 # not something this codebase imports directly, and openai==2.53.0 already pins a
 # compatible version of it. The old `httpx>=0.24.0` workaround-driven pin above is
 # gone along with the try/except client-init workaround it existed for.
+#
+# google-genai is the LLM_PROVIDER=gemini backend (app/services/llm/gemini_service.py),
+# the default script-writing provider. It's the current `google-genai` SDK, not the
+# deprecated `google-generativeai` package. openai stays pinned too: LLM_PROVIDER=openai
+# still selects the original OpenAI-backed script writer.
 fastapi==0.141.1
 uvicorn[standard]==0.52.1
 openai==2.53.0
+google-genai==2.17.0
 google-cloud-texttospeech==2.37.0
 pydantic==2.13.4
 python-multipart==0.0.32
