@@ -23,11 +23,15 @@ logger = logging.getLogger(__name__)
 
 # Single, well-named place to change the Gemini model used for transcript
 # generation/optimization -- deliberately not scattered across the class.
-# NOTE: not verified against a live API in this environment (no credentials
-# available in this sandbox). The Cloud TTS side already targets the
-# gemini-2.5-* family (see audio_service.TTS_MODEL), so gemini-2.5-flash was
-# chosen as the fast, general-purpose text model in that same family.
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# Override with the GEMINI_MODEL env var; no code change needed to move models.
+#
+# gemini-3.6-flash is the GA flash-tier model (released 2026-07-21) and the
+# like-for-like successor to gemini-2.5-flash, which retires 2026-10-16. Its
+# 64k output-token cap comfortably covers the largest limit we request (20k for
+# LONG mode, see BaseLLMService).
+#
+# NOTE: not verified against a live API -- no credentials in this environment.
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 
 
 class GeminiLLMService(BaseLLMService):

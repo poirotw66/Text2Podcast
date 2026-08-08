@@ -4,6 +4,7 @@ Integrates functionality from generate_audio_gemini.py
 """
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -38,7 +39,18 @@ DEFAULT_SPEAKER_VOICES: Dict[str, str] = {
 }
 
 # TTS configuration
-TTS_MODEL = "gemini-2.5-flash-tts"
+#
+# The Cloud TTS model is passed as VoiceSelectionParams.model_name. Override it
+# with the TTS_MODEL env var so moving between model generations needs no code
+# change -- the voice names and language code are independent of it.
+#
+# gemini-3.1-flash-tts-preview is the current 3.x TTS model. It is a *preview*
+# model: the identifier can change or be withdrawn, so TTS_MODEL is the escape
+# hatch back to the GA gemini-2.5-flash-tts if it misbehaves.
+#
+# NOTE: not verified against a live API -- no credentials in this environment.
+DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview"
+TTS_MODEL = os.getenv("TTS_MODEL", DEFAULT_TTS_MODEL)
 AUDIO_FORMAT = "mp3"
 LANGUAGE_CODE = "cmn-tw"
 

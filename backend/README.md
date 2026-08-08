@@ -17,9 +17,9 @@ pipeline steps -- don't conflate them:
   - `openai` -- `OpenAILLMService`, the original implementation, unchanged.
     Needs `OPENAI_API_KEY`. Not read at all unless `LLM_PROVIDER=openai`.
 - **Text-to-speech** (Step 3, `app/services/audio_service.py`) -- **always**
-  Google Cloud TTS (`gemini-2.5-flash-tts`). Not affected by `LLM_PROVIDER`,
-  not configurable to any other provider. Needs
-  `GOOGLE_APPLICATION_CREDENTIALS`.
+  Google Cloud TTS (`TTS_MODEL`, default `gemini-3.1-flash-tts-preview`). Not
+  affected by `LLM_PROVIDER` and not configurable to any other provider, though
+  the model itself is. Needs `GOOGLE_APPLICATION_CREDENTIALS`.
 
 So with the default configuration (`LLM_PROVIDER` unset, i.e. `gemini`), the
 whole backend runs on Google credentials alone -- no OpenAI key is read or
@@ -98,7 +98,10 @@ Notable optional variables (all documented in `.env.example`):
 
 - `LLM_PROVIDER` — `gemini` (default) or `openai`; selects the script-writing
   implementation (`app/services/llm/factory.py`).
-- `GEMINI_MODEL` — defaults to `gemini-2.5-flash`. `GOOGLE_CLOUD_PROJECT` /
+- `GEMINI_MODEL` — defaults to `gemini-3.6-flash` (GA; `gemini-2.5-flash`
+  retires 2026-10-16). `TTS_MODEL` — defaults to
+  `gemini-3.1-flash-tts-preview`, a preview model; fall back to the GA
+  `gemini-2.5-flash-tts` if it gives trouble. `GOOGLE_CLOUD_PROJECT` /
   `GOOGLE_CLOUD_LOCATION` configure the Vertex AI fallback used when no
   `GEMINI_API_KEY`/`GOOGLE_API_KEY` is set.
 - `OPENAI_MODEL` — defaults to `gpt-5-mini`. Only relevant when

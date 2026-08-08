@@ -21,7 +21,7 @@
 | 工作 | 服務 | 對應程式 | 所需憑證 |
 | --- | --- | --- | --- |
 | **腳本生成**（Step 1 產生逐字稿、Step 2 優化為講者分段） | **可切換**：預設 **Gemini**，也可設定 `LLM_PROVIDER=openai` 改用 **OpenAI** | `backend/app/services/llm/` | Gemini：`GEMINI_API_KEY`（或改用 Vertex AI：`GOOGLE_CLOUD_PROJECT` + 既有的 `GOOGLE_APPLICATION_CREDENTIALS`）。OpenAI：`OPENAI_API_KEY`（僅在 `LLM_PROVIDER=openai` 時需要） |
-| **語音合成**（Step 3 文字轉語音） | **固定為 Google Cloud TTS**（`gemini-2.5-flash-tts`），不受 `LLM_PROVIDER` 影響，也無法切換 | `backend/app/services/audio_service.py` | `GOOGLE_APPLICATION_CREDENTIALS`（Google Cloud 服務帳戶金鑰） |
+| **語音合成**（Step 3 文字轉語音） | **固定為 Google Cloud TTS**（模型由 `TTS_MODEL` 指定，預設 `gemini-3.1-flash-tts-preview`），供應商不受 `LLM_PROVIDER` 影響，也無法切換 | `backend/app/services/audio_service.py` | `GOOGLE_APPLICATION_CREDENTIALS`（Google Cloud 服務帳戶金鑰） |
 
 也就是說：**預設情況下（`LLM_PROVIDER` 未設定 = `gemini`），整個專案只需要 Google 憑證即可運作**，不再強制要求 OpenAI API Key。完整環境變數說明見 [`.env.example`](.env.example)。
 
@@ -295,9 +295,9 @@ outputs/{task_id}/
 
 ### 後端
 - **FastAPI** - 現代化的 Python Web 框架
-- **Google Cloud TTS**（`gemini-2.5-flash-tts`）- 語音合成服務，固定使用 Google，不可切換
+- **Google Cloud TTS**（預設 `gemini-3.1-flash-tts-preview`，可用 `TTS_MODEL` 覆蓋）- 語音合成服務，固定使用 Google，不可切換。此為 preview 模型，若不穩可改回 GA 的 `gemini-2.5-flash-tts`
 - **AI 轉錄生成**（腳本撰寫，`backend/app/services/llm/`）- 可切換供應商，經 `LLM_PROVIDER` 選擇：
-  - **Gemini**（預設，`google-genai` SDK，`gemini-2.5-flash`）
+  - **Gemini**（預設，`google-genai` SDK，`gemini-3.6-flash`，可用 `GEMINI_MODEL` 覆蓋）
   - **OpenAI**（`LLM_PROVIDER=openai`，Responses API，`gpt-5-mini`）
   - 兩者皆使用 structured outputs（JSON Schema）取得優化後的逐句腳本
 - **ffmpeg**（透過 `subprocess` 直接呼叫）- 音訊合併處理，取代已停止維護且在
