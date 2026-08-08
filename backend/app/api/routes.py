@@ -16,12 +16,19 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.models.schemas import (
     UploadRequest, UploadResponse, TaskStatusResponse, TaskStatus, ProgressEvent,
-    Step1Request, Step1Response, Step2Request, Step2Response, Step3Request
+    Step1Request, Step1Response, Step2Request, Step2Response, Step3Request,
+    SegmentInfo, SegmentsResponse, RegenerateRequest
 )
 from app.services.task_manager import get_task_manager, Task
 from app.services.transcript_service import get_transcript_service
 from app.services.audio_service import get_audio_service
-from app.utils.file_handler import save_transcript, save_text_file, load_transcript, load_text_file
+from app.utils.file_handler import (
+    save_transcript, save_text_file, load_transcript, load_text_file, load_metadata
+)
+
+# Per section 3 of the API contract: style_settings values (and the regenerate
+# endpoint's style_prompt) are capped at this many characters.
+MAX_STYLE_PROMPT_LENGTH = 200
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +166,15 @@ async def process_podcast_task(task_id: str, text_content: str):
             transcript_file=str(transcript_file)
         )
 
+        total_segments = audio_result["success"] + audio_result["failed"]
+        failed_segments = audio_result["failed"]
+        completion_message = (
+            f"Podcast generation completed, but {failed_segments} of {total_segments} segments failed"
+            if failed_segments else "Podcast generation completed!"
+        )
         task_manager.update_task_status(
-            task_id, TaskStatus.COMPLETED, 100, "Podcast generation completed!"
+            task_id, TaskStatus.COMPLETED, 100, completion_message,
+            total_segments=total_segments, failed_segments=failed_segments
         )
 
     except Exception as e:
@@ -324,8 +338,24 @@ async def step3_generate_audio(task_id: str, request: Step3Request, background_t
     else:
         logger.debug("No voice settings provided for task %s, using defaults", task_id)
 
+    # Get style settings from request, validating the per-speaker prompt length cap.
+    style_settings = None
+    if request and request.style_settings:
+        for speaker, style_prompt in request.style_settings.items():
+            if len(style_prompt) > MAX_STYLE_PROMPT_LENGTH:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"style_settings[{speaker!r}] exceeds {MAX_STYLE_PROMPT_LENGTH} characters"
+                )
+        style_settings = request.style_settings
+        logger.debug("Received style settings for task %s: %s", task_id, style_settings)
+    else:
+        logger.debug("No style settings provided for task %s, using defaults", task_id)
+
     # Start background audio generation
-    background_tasks.add_task(process_audio_generation, task_id, final_transcript, voice_settings)
+    background_tasks.add_task(
+        process_audio_generation, task_id, final_transcript, voice_settings, style_settings
+    )
 
     return TaskStatusResponse(
         task_id=task_id,
@@ -335,7 +365,12 @@ async def step3_generate_audio(task_id: str, request: Step3Request, background_t
     )
 
 
-async def process_audio_generation(task_id: str, transcript: list, voice_settings: Optional[Dict[str, str]] = None):
+async def process_audio_generation(
+    task_id: str,
+    transcript: list,
+    voice_settings: Optional[Dict[str, str]] = None,
+    style_settings: Optional[Dict[str, str]] = None
+):
     """Background task to generate audio from transcript"""
     task_manager = get_task_manager()
     audio_service = get_audio_service()
@@ -352,6 +387,11 @@ async def process_audio_generation(task_id: str, transcript: list, voice_setting
         else:
             logger.debug("Using default voice settings in audio generation for task %s", task_id)
 
+        if style_settings:
+            logger.debug("Using style settings in audio generation for task %s: %s", task_id, style_settings)
+        else:
+            logger.debug("Using default style settings in audio generation for task %s", task_id)
+
         # Both generate_audio_from_transcript (synchronous; runs its own
         # ThreadPoolExecutor internally) and merge_audio_files (synchronous; shells
         # out to ffmpeg and waits) block. This function is awaited by FastAPI's
@@ -359,7 +399,7 @@ async def process_audio_generation(task_id: str, transcript: list, voice_setting
         # would stall every other request and SSE stream on the server while they run.
         audio_result = await asyncio.to_thread(
             audio_service.generate_audio_from_transcript,
-            transcript, task_output_dir, voice_settings=voice_settings
+            transcript, task_output_dir, voice_settings=voice_settings, style_settings=style_settings
         )
 
         if audio_result["success"] == 0:
@@ -388,12 +428,166 @@ async def process_audio_generation(task_id: str, transcript: list, voice_setting
             transcript_file=str(final_transcript_file)
         )
 
+        total_segments = audio_result["success"] + audio_result["failed"]
+        failed_segments = audio_result["failed"]
+        completion_message = (
+            f"Podcast generation completed, but {failed_segments} of {total_segments} segments failed"
+            if failed_segments else "Podcast generation completed!"
+        )
         task_manager.update_task_status(
-            task_id, TaskStatus.COMPLETED, 100, "Podcast generation completed!"
+            task_id, TaskStatus.COMPLETED, 100, completion_message,
+            total_segments=total_segments, failed_segments=failed_segments
         )
 
     except Exception as e:
         logger.exception("process_audio_generation failed for task %s", task_id)
+        task_manager.set_task_error(task_id, str(e))
+
+
+@router.get("/segments/{task_id}", response_model=SegmentsResponse)
+async def get_segments(task_id: str):
+    """
+    Get per-segment TTS state for a task, read from its metadata.json.
+
+    404s distinctly for an unknown task vs. a known task where audio generation
+    hasn't run yet (no metadata.json).
+    """
+    task_manager = get_task_manager()
+    task = task_manager.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    metadata_file = OUTPUTS_DIR / task_id / "metadata.json"
+    if not metadata_file.exists():
+        raise HTTPException(status_code=404, detail="Audio generation has not run for this task yet")
+
+    metadata = load_metadata(metadata_file)
+    audio_files = sorted(metadata.get("audio_files", []), key=lambda item: item["index"])
+
+    segments = [
+        SegmentInfo(
+            index=item["index"],
+            speaker=item["speaker"],
+            text=item["text"],
+            voice=item["voice"],
+            # Old metadata files predate the "success" key -- everything they recorded
+            # was, by construction, a successful segment.
+            success=item.get("success", True),
+            error=item.get("error")
+        )
+        for item in audio_files
+    ]
+    failed = sum(1 for segment in segments if not segment.success)
+    total = metadata.get("total_segments", len(segments))
+
+    return SegmentsResponse(total=total, failed=failed, segments=segments)
+
+
+@router.post(
+    "/regenerate/{task_id}", response_model=TaskStatusResponse,
+    dependencies=[Depends(enforce_abuse_protection)]
+)
+async def regenerate_segment(task_id: str, request: RegenerateRequest, background_tasks: BackgroundTasks):
+    """
+    Regenerate exactly one TTS segment, then re-merge the full audio.
+
+    The work runs in the background (same pattern as /step3); the client follows
+    /api/stream/{task_id} as usual and re-reads /api/segments/{task_id} or
+    /api/status/{task_id} once it settles.
+    """
+    task_manager = get_task_manager()
+    task = task_manager.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task_output_dir = OUTPUTS_DIR / task_id
+    metadata_file = task_output_dir / "metadata.json"
+    if not metadata_file.exists():
+        raise HTTPException(status_code=404, detail="Audio generation has not run for this task yet")
+
+    metadata = load_metadata(metadata_file)
+    total_segments = metadata.get("total_segments", len(metadata.get("audio_files", [])))
+
+    if request.segment_index < 1 or request.segment_index > total_segments:
+        raise HTTPException(
+            status_code=400,
+            detail=f"segment_index must be between 1 and {total_segments}"
+        )
+
+    if request.style_prompt is not None and len(request.style_prompt) > MAX_STYLE_PROMPT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"style_prompt exceeds {MAX_STYLE_PROMPT_LENGTH} characters"
+        )
+
+    background_tasks.add_task(
+        process_regenerate_segment,
+        task_id, request.segment_index, request.text, request.voice, request.style_prompt
+    )
+
+    return TaskStatusResponse(
+        task_id=task_id,
+        status=TaskStatus.STEP3,
+        progress=0,
+        message="Segment regeneration started"
+    )
+
+
+async def process_regenerate_segment(
+    task_id: str,
+    segment_index: int,
+    text: Optional[str],
+    voice: Optional[str],
+    style_prompt: Optional[str]
+):
+    """Background task: regenerate one segment's audio, then re-merge the full file."""
+    task_manager = get_task_manager()
+    audio_service = get_audio_service()
+    task_output_dir = OUTPUTS_DIR / task_id
+    metadata_file = task_output_dir / "metadata.json"
+
+    try:
+        task_manager.update_task_status(
+            task_id, TaskStatus.STEP3, 30, f"Regenerating segment {segment_index}..."
+        )
+
+        # regenerate_segment (synchronous: one TTS call) and merge_audio_files
+        # (synchronous: shells out to ffmpeg) both block, so run them off the event
+        # loop the same way the initial generation does.
+        regen_result = await asyncio.to_thread(
+            audio_service.regenerate_segment,
+            metadata_file, segment_index, text, voice, style_prompt
+        )
+
+        task_manager.update_task_status(
+            task_id, TaskStatus.STEP3, 70, "Merging audio files..."
+        )
+
+        merged_audio_file = task_output_dir / "merged_audio.mp3"
+        merged_file = await asyncio.to_thread(
+            audio_service.merge_audio_files, metadata_file, merged_audio_file
+        )
+
+        if not merged_file:
+            raise Exception("Failed to merge audio files")
+
+        task_manager.set_task_files(task_id, audio_file=str(merged_audio_file))
+
+        total_segments = regen_result["total_segments"]
+        failed_segments = regen_result["failed"]
+        completion_message = (
+            f"Segment regeneration completed, but {failed_segments} of {total_segments} segments failed"
+            if failed_segments else "Segment regeneration completed successfully"
+        )
+        task_manager.update_task_status(
+            task_id, TaskStatus.COMPLETED, 100, completion_message,
+            total_segments=total_segments, failed_segments=failed_segments
+        )
+
+    except Exception as e:
+        logger.exception("process_regenerate_segment failed for task %s (segment %d)", task_id, segment_index)
         task_manager.set_task_error(task_id, str(e))
 
 
@@ -413,7 +607,10 @@ async def get_task_status(task_id: str):
         message=task.message,
         error=task.error,
         audio_file=task.audio_file,
-        transcript_file=task.transcript_file
+        transcript_file=task.transcript_file,
+        total_segments=task.total_segments,
+        failed_segments=task.failed_segments,
+        partial=task.partial
     )
 
 
@@ -531,7 +728,10 @@ async def stream_progress(task_id: str, request: Request):
                 task_id=current.task_id,
                 status=current.status,
                 progress=current.progress,
-                message=current.message or (current.error if current.status == TaskStatus.FAILED else None)
+                message=current.message or (current.error if current.status == TaskStatus.FAILED else None),
+                total_segments=current.total_segments,
+                failed_segments=current.failed_segments,
+                partial=current.partial
             ).model_dump_json(),
         }
 

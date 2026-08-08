@@ -45,6 +45,36 @@ export interface TaskStatus {
   error?: string
   audio_file?: string
   transcript_file?: string
+  total_segments?: number
+  failed_segments?: number
+  partial?: boolean
+}
+
+export interface StyleSettings {
+  'Speaker 1'?: string
+  'Speaker 2'?: string
+}
+
+export interface SegmentInfo {
+  index: number
+  speaker: string
+  text: string
+  voice: string
+  success: boolean
+  error: string | null
+}
+
+export interface SegmentsResponse {
+  total: number
+  failed: number
+  segments: SegmentInfo[]
+}
+
+export interface RegenerateSegmentRequest {
+  segment_index: number
+  text?: string
+  voice?: string
+  style_prompt?: string
 }
 
 export const podcastApi = {
@@ -113,13 +143,15 @@ export const podcastApi = {
    * Step 3: Generate audio
    */
   async step3GenerateAudio(
-    taskId: string, 
+    taskId: string,
     finalTranscript?: Array<[string, string]>,
-    voiceSettings?: { 'Speaker 1': string; 'Speaker 2': string }
+    voiceSettings?: { 'Speaker 1': string; 'Speaker 2': string },
+    styleSettings?: StyleSettings
   ): Promise<TaskStatus> {
     const response = await api.post(`/api/step3/${taskId}`, {
       final_transcript: finalTranscript || null,
-      voice_settings: voiceSettings || null
+      voice_settings: voiceSettings || null,
+      style_settings: styleSettings || null
     })
     return response.data
   },
@@ -129,6 +161,23 @@ export const podcastApi = {
    */
   async getTranscript(taskId: string): Promise<{ transcript: Array<[string, string]> }> {
     const response = await api.get(`/api/transcript/${taskId}`)
+    return response.data
+  },
+
+  /**
+   * Get per-segment status for a task's generated audio
+   */
+  async getSegments(taskId: string): Promise<SegmentsResponse> {
+    const response = await api.get<SegmentsResponse>(`/api/segments/${taskId}`)
+    return response.data
+  },
+
+  /**
+   * Regenerate a single segment (optionally with new text/voice/style) and
+   * re-merge the full audio. Runs in the background; follow via SSE.
+   */
+  async regenerateSegment(taskId: string, payload: RegenerateSegmentRequest): Promise<TaskStatus> {
+    const response = await api.post<TaskStatus>(`/api/regenerate/${taskId}`, payload)
     return response.data
   },
 }

@@ -38,6 +38,13 @@ DEFAULT_SPEAKER_VOICES: Dict[str, str] = {
     "Speaker 2": "Charon"
 }
 
+# Default TTS steerability prompt, used whenever a request doesn't supply its own
+# style_settings (or supplies settings that don't cover a given speaker). Like
+# DEFAULT_SPEAKER_VOICES above, style settings are threaded through
+# generate_audio_from_transcript() as a per-call argument rather than a mutable
+# module global, for the same concurrency reason.
+DEFAULT_TTS_PROMPT = "Say the following naturally"
+
 # TTS configuration
 #
 # The Cloud TTS model is passed as VoiceSelectionParams.model_name. Override it
@@ -103,7 +110,8 @@ def generate_single_audio(
     model: str = TTS_MODEL,
     language_code: str = LANGUAGE_CODE,
     max_retries: int = 3,
-    retry_delay: float = 1.0
+    retry_delay: float = 1.0,
+    prompt: str = DEFAULT_TTS_PROMPT
 ) -> Dict:
     """
     Generate a single audio file using Gemini TTS
@@ -116,6 +124,8 @@ def generate_single_audio(
         language_code: Language code
         max_retries: Maximum retries
         retry_delay: Delay between retries
+        prompt: TTS steerability prompt passed as SynthesisInput.prompt (e.g. "Speak
+            warmly and conversationally"). Defaults to DEFAULT_TTS_PROMPT.
 
     Returns:
         Dictionary with success status and file info
@@ -129,7 +139,7 @@ def generate_single_audio(
             # Create synthesis input
             synthesis_input = texttospeech.SynthesisInput(
                 text=text,
-                prompt="Say the following naturally"
+                prompt=prompt
             )
 
             # Select voice
@@ -232,7 +242,8 @@ class AudioService:
         transcript: List[Tuple[str, str]],
         output_dir: Path,
         max_workers: int = 5,
-        voice_settings: Optional[Dict[str, str]] = None
+        voice_settings: Optional[Dict[str, str]] = None,
+        style_settings: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Generate audio files from transcript
@@ -245,14 +256,20 @@ class AudioService:
                 Falls back to DEFAULT_SPEAKER_VOICES when not provided. This is a per-call
                 argument (not shared mutable state), so concurrent requests with different
                 voice choices can't clobber each other.
+            style_settings: Optional per-speaker TTS prompt dict (e.g.
+                {"Speaker 1": "Speak warmly and conversationally"}), keyed exactly like
+                voice_settings. Unknown keys are ignored; speakers missing from the dict
+                fall back to DEFAULT_TTS_PROMPT. Also a per-call argument, for the same
+                concurrency reason as voice_settings.
 
         Returns:
             Dictionary with audio files info and metadata
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Use provided voice settings or fall back to defaults
+        # Use provided voice/style settings or fall back to defaults
         voices_to_use = voice_settings if voice_settings else DEFAULT_SPEAKER_VOICES
+        styles_to_use = style_settings if style_settings else {}
 
         logger.info("Voice mapping: %s", voices_to_use)
 
@@ -276,10 +293,25 @@ class AudioService:
             # Default fallback
             return "Kore"
 
+        def get_style_for_speaker(speaker_name: str) -> str:
+            """Get TTS prompt for speaker, mirroring get_voice_for_speaker's matching rules"""
+            if speaker_name in styles_to_use:
+                return styles_to_use[speaker_name]
+
+            match = re.search(r'[12]', speaker_name)
+            if match:
+                speaker_num = match.group()
+                english_key = f"Speaker {speaker_num}"
+                if english_key in styles_to_use:
+                    return styles_to_use[english_key]
+
+            return DEFAULT_TTS_PROMPT
+
         # Prepare tasks
         tasks = []
         for i, (speaker, text) in enumerate(transcript, 1):
             voice = get_voice_for_speaker(speaker)
+            style_prompt = get_style_for_speaker(speaker)
             logger.debug("Segment %d: Speaker '%s' -> Voice '%s'", i, speaker, voice)
             output_file = output_dir / f"{speaker.replace(' ', '_')}_{i:03d}.{AUDIO_FORMAT}"
             tasks.append({
@@ -287,6 +319,7 @@ class AudioService:
                 "speaker": speaker,
                 "text": text,
                 "voice": voice,
+                "prompt": style_prompt,
                 "output_file": output_file
             })
 
@@ -301,7 +334,8 @@ class AudioService:
                     generate_single_audio,
                     task["text"],
                     task["voice"],
-                    task["output_file"]
+                    task["output_file"],
+                    prompt=task["prompt"]
                 ): task for task in tasks
             }
 
@@ -311,17 +345,25 @@ class AudioService:
                 task = future_to_task[future]
                 results[task["index"]] = result
 
-        # Sort and process results
+        # Sort and process results. Every segment is recorded here in index order --
+        # successful and failed alike -- so downstream consumers (the segments API,
+        # regeneration) can identify exactly which indices failed. Only the "file" path
+        # of a *successful* segment actually exists on disk; merge_audio_files() relies
+        # on that (plus the "success" flag) to skip failures during the merge.
         for index in sorted(results.keys()):
             result = results[index]
+            task = tasks[index - 1]
+            entry = {
+                "speaker": task["speaker"],
+                "index": index,
+                "file": str(task["output_file"]),
+                "text": task["text"],
+                "voice": task["voice"],
+                "success": result["success"],
+                "error": None if result["success"] else result.get("error")
+            }
+            audio_files.append(entry)
             if result["success"]:
-                audio_files.append({
-                    "speaker": tasks[index - 1]["speaker"],
-                    "index": index,
-                    "file": result["file"],
-                    "text": result["text"],
-                    "voice": result["voice"]
-                })
                 success_count += 1
             else:
                 fail_count += 1
@@ -398,11 +440,22 @@ class AudioService:
             # Build the concat list in metadata order, mirroring the original pydub loop:
             # silence is inserted after segment i whenever i is not the last index in the
             # *full* metadata list (i.e. based on position in audio_files, not on how many
-            # segments actually existed on disk).
+            # segments actually existed on disk). This is deliberately left as-is: an
+            # entry's position in audio_files -- not the count of entries actually
+            # included below -- decides where silence goes, even now that audio_files
+            # includes failed segments too.
+            #
+            # A failed segment (success is False) never has a file on disk, so it's
+            # skipped below regardless; the explicit success check just makes that
+            # intent legible instead of relying solely on the exists() check. Old
+            # metadata files predate the "success" key -- treat it as True when absent,
+            # matching every other reader of this field.
             concat_list_file = tmp_dir / "concat_list.txt"
             included_any = False
             with open(concat_list_file, 'w', encoding='utf-8') as f:
                 for i, item in enumerate(audio_files, 1):
+                    if not item.get("success", True):
+                        continue
                     file_path = Path(item["file"])
                     if not file_path.exists():
                         logger.warning("Skipping missing audio segment: %s", file_path)
@@ -429,6 +482,89 @@ class AudioService:
                 return None
 
         return output_file
+
+    def regenerate_segment(
+        self,
+        metadata_file: Path,
+        segment_index: int,
+        text: Optional[str] = None,
+        voice: Optional[str] = None,
+        style_prompt: Optional[str] = None
+    ) -> Dict:
+        """
+        Regenerate exactly one segment (by its 1-based `metadata.json` index),
+        overwriting its audio file on disk and updating its metadata entry in place.
+
+        Does not re-merge -- callers are expected to run merge_audio_files() against
+        the same metadata_file afterwards so merged_audio.mp3 picks up the change.
+
+        Args:
+            metadata_file: Path to the task's existing metadata.json
+            segment_index: 1-based index of the segment to regenerate, matching an
+                existing entry's "index" field
+            text: Optional replacement text; reuses the existing segment text when omitted
+            voice: Optional replacement voice; reuses the existing segment voice when omitted
+            style_prompt: Optional one-off TTS prompt for this regeneration only; falls
+                back to DEFAULT_TTS_PROMPT when omitted (per-segment style is not
+                persisted from the original generation, so there's nothing else to fall
+                back to)
+
+        Returns:
+            Dictionary with the recomputed total_segments/success/failed counts and
+            whether this specific regeneration succeeded
+
+        Raises:
+            ValueError: if segment_index has no matching entry in metadata
+        """
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+
+        audio_files = metadata.get("audio_files", [])
+        entry = next((item for item in audio_files if item.get("index") == segment_index), None)
+        if entry is None:
+            raise ValueError(f"Segment index {segment_index} not found in metadata")
+
+        text_to_use = text if text is not None else entry.get("text", "")
+        voice_to_use = voice if voice is not None else entry.get("voice", "Kore")
+        prompt_to_use = style_prompt if style_prompt is not None else DEFAULT_TTS_PROMPT
+        speaker = entry.get("speaker", "Speaker 1")
+
+        output_file = (
+            Path(entry["file"]) if entry.get("file")
+            else metadata_file.parent / f"{speaker.replace(' ', '_')}_{segment_index:03d}.{AUDIO_FORMAT}"
+        )
+
+        result = generate_single_audio(text_to_use, voice_to_use, output_file, prompt=prompt_to_use)
+
+        # Update this entry in place, reflecting the latest attempt regardless of outcome
+        # (mirroring how a fresh generation records text/voice for failed segments too).
+        entry["text"] = text_to_use
+        entry["voice"] = voice_to_use
+        entry["file"] = str(output_file)
+        entry["success"] = result["success"]
+        entry["error"] = None if result["success"] else result.get("error")
+
+        if not result["success"]:
+            logger.error("Failed to regenerate audio for segment %d: %s", segment_index, entry["error"])
+
+        fail_count = sum(1 for item in audio_files if not item.get("success", True))
+        success_count = len(audio_files) - fail_count
+        total_segments = metadata.get("total_segments", len(audio_files))
+
+        metadata["success"] = success_count
+        metadata["failed"] = fail_count
+        metadata["audio_files"] = audio_files
+
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+        return {
+            "total_segments": total_segments,
+            "success": success_count,
+            "failed": fail_count,
+            "regenerated_success": result["success"],
+            "regenerated_error": entry["error"]
+        }
 
 
 # Singleton instance

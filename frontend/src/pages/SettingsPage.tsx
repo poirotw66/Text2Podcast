@@ -2,10 +2,11 @@ import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePodcastContext } from '../contexts/PodcastContext'
 import { VOICES, Voice, DEFAULT_VOICES } from '../data/voices'
+import { TONE_PRESETS, DEFAULT_TONE_SETTINGS } from '../data/tonePresets'
 
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate()
-  const { voiceSettings, setVoiceSettings } = usePodcastContext()
+  const { voiceSettings, setVoiceSettings, toneSettings, setToneSettings } = usePodcastContext()
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({})
 
@@ -15,6 +16,16 @@ export const SettingsPage: React.FC = () => {
       [speaker]: voiceName
     })
   }
+
+  const handleToneSelect = (speaker: 'Speaker 1' | 'Speaker 2', toneId: string) => {
+    setToneSettings({
+      ...toneSettings,
+      [speaker]: toneId
+    })
+  }
+
+  const toneLabel = (toneId: string) =>
+    TONE_PRESETS.find((preset) => preset.id === toneId)?.label ?? toneId
 
   const handlePlayPreview = (voice: Voice) => {
     // Stop any currently playing audio
@@ -52,6 +63,7 @@ export const SettingsPage: React.FC = () => {
 
   const handleReset = () => {
     setVoiceSettings(DEFAULT_VOICES)
+    setToneSettings(DEFAULT_TONE_SETTINGS)
   }
 
   return (
@@ -111,6 +123,9 @@ export const SettingsPage: React.FC = () => {
                 <div style={{ fontSize: '0.85rem', color: '#388e3c', marginTop: '0.25rem' }}>
                   {VOICES.find(v => v.name === voiceSettings['Speaker 1'])?.gender === 'female' ? '👩 Female' : '👨 Male'}
                 </div>
+                <div style={{ fontSize: '0.85rem', color: '#388e3c', marginTop: '0.5rem' }}>
+                  語氣: {toneLabel(toneSettings['Speaker 1'])}
+                </div>
               </div>
               <div style={{
                 padding: '1rem',
@@ -129,6 +144,9 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#8e24aa', marginTop: '0.25rem' }}>
                   {VOICES.find(v => v.name === voiceSettings['Speaker 2'])?.gender === 'female' ? '👩 Female' : '👨 Male'}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#8e24aa', marginTop: '0.5rem' }}>
+                  語氣: {toneLabel(toneSettings['Speaker 2'])}
                 </div>
               </div>
             </div>
@@ -169,6 +187,34 @@ export const SettingsPage: React.FC = () => {
               <span style={{ fontSize: '1.5rem' }}>🟢</span>
               Select Speaker 1 Voice
             </h2>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label
+                htmlFor="speaker1-tone"
+                style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', color: '#2e7d32', fontSize: '0.95rem' }}
+              >
+                語氣 (Tone)
+              </label>
+              <select
+                id="speaker1-tone"
+                value={toneSettings['Speaker 1']}
+                onChange={(e) => handleToneSelect('Speaker 1', e.target.value)}
+                style={{
+                  padding: '0.6rem 0.9rem',
+                  borderRadius: '8px',
+                  border: '2px solid #4caf50',
+                  backgroundColor: 'white',
+                  color: '#2e7d32',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  minWidth: '240px',
+                  cursor: 'pointer'
+                }}
+              >
+                {TONE_PRESETS.map(preset => (
+                  <option key={preset.id} value={preset.id}>{preset.label}</option>
+                ))}
+              </select>
+            </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
@@ -270,6 +316,34 @@ export const SettingsPage: React.FC = () => {
               <span style={{ fontSize: '1.5rem' }}>🟣</span>
               Select Speaker 2 Voice
             </h2>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label
+                htmlFor="speaker2-tone"
+                style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', color: '#7b1fa2', fontSize: '0.95rem' }}
+              >
+                語氣 (Tone)
+              </label>
+              <select
+                id="speaker2-tone"
+                value={toneSettings['Speaker 2']}
+                onChange={(e) => handleToneSelect('Speaker 2', e.target.value)}
+                style={{
+                  padding: '0.6rem 0.9rem',
+                  borderRadius: '8px',
+                  border: '2px solid #9c27b0',
+                  backgroundColor: 'white',
+                  color: '#7b1fa2',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  minWidth: '240px',
+                  cursor: 'pointer'
+                }}
+              >
+                {TONE_PRESETS.map(preset => (
+                  <option key={preset.id} value={preset.id}>{preset.label}</option>
+                ))}
+              </select>
+            </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',

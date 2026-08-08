@@ -1,13 +1,17 @@
 import { useEffect, useState, useRef } from 'react'
-import { TaskStatus } from '../services/api'
+import { TaskStatus, podcastApi } from '../services/api'
 
 interface UseProgressOptions {
   taskId: string | null
+  // Bump this (e.g. with a counter) to force a fresh SSE connection, such as
+  // after kicking off a background regeneration once the previous stream
+  // already closed on completion.
+  reconnectKey?: number | string
   onComplete?: () => void
   onError?: (error: string) => void
 }
 
-export const useProgress = ({ taskId, onComplete, onError }: UseProgressOptions) => {
+export const useProgress = ({ taskId, reconnectKey, onComplete, onError }: UseProgressOptions) => {
   const [status, setStatus] = useState<TaskStatus | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -27,10 +31,10 @@ export const useProgress = ({ taskId, onComplete, onError }: UseProgressOptions)
       return
     }
 
-    // Create SSE connection
-    const eventSource = new EventSource(
-      `http://localhost:8000/api/stream/${taskId}`
-    )
+    // Create SSE connection. Goes through podcastApi so the stream honours
+    // VITE_API_URL like every other request -- this used to hardcode localhost:8000,
+    // which silently broke progress updates against any non-local backend.
+    const eventSource = new EventSource(podcastApi.getProgressStreamUrl(taskId))
     eventSourceRef.current = eventSource
 
     const handleOpen = () => {
@@ -49,6 +53,9 @@ export const useProgress = ({ taskId, onComplete, onError }: UseProgressOptions)
           error: data.error,
           audio_file: data.audio_file,
           transcript_file: data.transcript_file,
+          total_segments: data.total_segments,
+          failed_segments: data.failed_segments,
+          partial: data.partial,
         }
         console.log('SSE message received:', newStatus)
         setStatus(newStatus)
@@ -95,7 +102,7 @@ export const useProgress = ({ taskId, onComplete, onError }: UseProgressOptions)
       eventSourceRef.current = null
       setIsConnected(false)
     }
-  }, [taskId])  // Only depend on taskId, not callbacks
+  }, [taskId, reconnectKey])  // Depend on taskId + reconnectKey, not callbacks
 
   return { status, isConnected }
 }

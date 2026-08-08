@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Stepper } from '../components/Stepper'
 import { Step4Result } from '../components/Step4Result'
@@ -17,6 +17,9 @@ export const Step4Page: React.FC = () => {
   const navigate = useNavigate()
   const { taskId: urlTaskId } = useParams<{ taskId: string }>()
   const { taskId, setTaskId, clearAll } = usePodcastContext()
+  // Bumped after kicking off a segment regeneration to reopen the SSE
+  // stream, since it already closed once the first generation completed.
+  const [reconnectKey, setReconnectKey] = useState(0)
 
   useEffect(() => {
     if (urlTaskId && urlTaskId !== taskId) {
@@ -27,14 +30,19 @@ export const Step4Page: React.FC = () => {
   const handleComplete = useCallback(() => {
     console.log('Task completed!')
   }, [])
-  
+
   const handleError = useCallback((error: string) => {
     console.error('Task failed:', error)
+  }, [])
+
+  const handleRegenerateStart = useCallback(() => {
+    setReconnectKey((key) => key + 1)
   }, [])
 
   const currentTaskId = urlTaskId || taskId
   const { status } = useProgress({
     taskId: currentTaskId,
+    reconnectKey,
     onComplete: handleComplete,
     onError: handleError
   })
@@ -85,6 +93,7 @@ export const Step4Page: React.FC = () => {
             taskId={currentTaskId}
             status={status}
             onNewPodcast={handleNewPodcast}
+            onRegenerateStart={handleRegenerateStart}
           />
         </div>
       </div>
