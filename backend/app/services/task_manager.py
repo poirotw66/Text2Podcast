@@ -50,19 +50,39 @@ class Task:
         self.error: Optional[str] = None
         self.audio_file: Optional[str] = None
         self.transcript_file: Optional[str] = None
+        # Populated once audio generation has run at least once for this task (initial
+        # Step 3 or a later regeneration). None beforehand.
+        self.total_segments: Optional[int] = None
+        self.failed_segments: Optional[int] = None
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
         # Set (via TaskManager) whenever this task's status/progress/files change, so
         # the SSE stream can await it instead of polling the task dict every second.
         self.update_event = asyncio.Event()
 
-    def update_status(self, status: TaskStatus, progress: int = None, message: str = None):
+    @property
+    def partial(self) -> bool:
+        """True iff the most recent audio generation had at least one failed segment."""
+        return bool(self.failed_segments)
+
+    def update_status(
+        self,
+        status: TaskStatus,
+        progress: int = None,
+        message: str = None,
+        total_segments: int = None,
+        failed_segments: int = None
+    ):
         """Update task status"""
         self.status = status
         if progress is not None:
             self.progress = progress
         if message:
             self.message = message
+        if total_segments is not None:
+            self.total_segments = total_segments
+        if failed_segments is not None:
+            self.failed_segments = failed_segments
         self.updated_at = datetime.now()
 
     def set_error(self, error: str):
@@ -81,6 +101,9 @@ class Task:
             "error": self.error,
             "audio_file": self.audio_file,
             "transcript_file": self.transcript_file,
+            "total_segments": self.total_segments,
+            "failed_segments": self.failed_segments,
+            "partial": self.partial,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
@@ -101,7 +124,13 @@ class TaskStore(ABC):
 
     @abstractmethod
     def update_task_status(
-        self, task_id: str, status: TaskStatus, progress: int = None, message: str = None
+        self,
+        task_id: str,
+        status: TaskStatus,
+        progress: int = None,
+        message: str = None,
+        total_segments: int = None,
+        failed_segments: int = None
     ) -> bool: ...
 
     @abstractmethod
@@ -146,11 +175,23 @@ class TaskManager(TaskStore):
                 pass  # Called from a non-asyncio context (e.g. a script); no loop to notify.
 
     def _signal_update(self, task: Task) -> None:
-        """Wake up any SSE listeners waiting on this task's update_event. Thread-safe."""
+        """
+        Wake up any SSE listeners waiting on this task's update_event. Thread-safe.
+
+        The captured loop can already be closed by the time a worker thread gets here:
+        audio generation runs for minutes, so a shutdown or restart mid-generation
+        leaves background threads signalling into a dead loop. Never let that escape --
+        this is called from set_task_error() too, where raising would mask the very
+        error we are trying to record. With the loop gone there are no live waiters, so
+        setting the flag directly is enough for anyone who reads it later.
+        """
         if self._loop is not None:
-            self._loop.call_soon_threadsafe(task.update_event.set)
-        else:
-            task.update_event.set()
+            try:
+                self._loop.call_soon_threadsafe(task.update_event.set)
+                return
+            except RuntimeError:
+                logger.debug("Event loop closed; setting update_event for task %s directly", task.task_id)
+        task.update_event.set()
 
     def _remove_task_locked(self, task_id: str) -> None:
         """Remove a task and its output directory. Caller must hold self._lock."""
@@ -206,13 +247,15 @@ class TaskManager(TaskStore):
         task_id: str,
         status: TaskStatus,
         progress: int = None,
-        message: str = None
+        message: str = None,
+        total_segments: int = None,
+        failed_segments: int = None
     ) -> bool:
         """Update task status"""
         with self._lock:
             task = self.tasks.get(task_id)
             if task:
-                task.update_status(status, progress, message)
+                task.update_status(status, progress, message, total_segments, failed_segments)
         if task:
             self._signal_update(task)
             return True

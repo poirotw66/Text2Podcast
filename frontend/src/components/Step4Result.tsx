@@ -5,15 +5,17 @@ import { AudioPlayer } from './AudioPlayer'
 import { TaskStatus } from '../services/api'
 import html2canvas from 'html2canvas-pro'
 import jsPDF from 'jspdf'
-import { DownloadIcon, FileTextIcon, CheckIcon, HeadphonesIcon, SparklesIcon, LoaderIcon } from './icons'
+import { DownloadIcon, FileTextIcon, CheckIcon, HeadphonesIcon, SparklesIcon, LoaderIcon, WarningIcon } from './icons'
+import { SegmentList } from './SegmentList'
 
 interface Step4ResultProps {
   taskId: string
   status: TaskStatus | null
   onNewPodcast: () => void
+  onRegenerateStart: () => void
 }
 
-export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewPodcast }) => {
+export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewPodcast, onRegenerateStart }) => {
   const [transcript, setTranscript] = useState<Array<[string, string]>>([])
   const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -359,11 +361,16 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
   }
 
   const isCompleted = status?.status === 'completed'
+  const isPartial = isCompleted && status?.partial === true
   // Always try to construct audio URL when completed, even if status.audio_file is not set
   const audioUrl = isCompleted ? podcastApi.getAudioDownloadUrl(taskId) : null
 
+  // Refetch on every rising edge into 'completed', not just the first time:
+  // a segment regeneration (feature 2) can change the transcript text, so a
+  // one-shot fetch would otherwise leave a stale transcript displayed.
+  const prevCompletedRef = useRef(false)
   useEffect(() => {
-    if (isCompleted && transcript.length === 0 && !loadingTranscript) {
+    if (isCompleted && !prevCompletedRef.current) {
       setLoadingTranscript(true)
       podcastApi.getTranscript(taskId)
         .then((data) => {
@@ -376,7 +383,8 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
           setLoadingTranscript(false)
         })
     }
-  }, [isCompleted, taskId, transcript.length, loadingTranscript])
+    prevCompletedRef.current = isCompleted
+  }, [isCompleted, taskId])
 
   return (
     <div className="glass-card" style={{ 
@@ -416,14 +424,18 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
           <div style={{
             marginBottom: '2rem',
             padding: '2rem',
-            background: 'linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%)',
+            background: isPartial
+              ? 'linear-gradient(135deg, #fef3c7 0%, #fee2e2 100%)'
+              : 'linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%)',
             borderRadius: '1rem',
-            border: '3px solid #10b981',
-            boxShadow: '0 10px 15px -3px rgba(16,185,129,0.2)'
+            border: isPartial ? '3px solid #dc2626' : '3px solid #10b981',
+            boxShadow: isPartial
+              ? '0 10px 15px -3px rgba(220,38,38,0.2)'
+              : '0 10px 15px -3px rgba(16,185,129,0.2)'
           }}>
-            <h3 style={{ 
-              marginBottom: '1.5rem', 
-              color: '#059669', 
+            <h3 style={{
+              marginBottom: isPartial ? '1rem' : '1.5rem',
+              color: isPartial ? '#b91c1c' : '#059669',
               textAlign: 'center',
               fontSize: '1.5rem',
               fontWeight: '700',
@@ -432,10 +444,34 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
               justifyContent: 'center',
               gap: '0.5rem'
             }}>
-              <CheckIcon size={28} />
-              Podcast Generated Successfully!
+              {isPartial ? <WarningIcon size={28} /> : <CheckIcon size={28} />}
+              {isPartial ? 'Podcast Generated with Missing Segments' : 'Podcast Generated Successfully!'}
             </h3>
-            
+
+            {isPartial && (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: '1.5rem',
+                  padding: '1.25rem',
+                  backgroundColor: '#fee2e2',
+                  border: '2px solid #dc2626',
+                  borderRadius: '0.75rem',
+                  color: '#7f1d1d'
+                }}
+              >
+                <p style={{ fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <WarningIcon size={18} />
+                  Warning: {status?.failed_segments ?? '?'} of {status?.total_segments ?? '?'} segments failed to generate.
+                </p>
+                <p style={{ fontSize: '0.95rem', lineHeight: '1.5' }}>
+                  {status?.message || 'Some lines could not be converted to audio.'}
+                  {' '}The downloaded audio is missing those lines. You can still download it below, or use the
+                  segment list further down the page to regenerate the failed lines individually.
+                </p>
+              </div>
+            )}
+
             {/* Audio Player - Always show when completed */}
             <div style={{ marginBottom: '2rem' }}>
               <label style={{ 
@@ -774,6 +810,14 @@ export const Step4Result: React.FC<Step4ResultProps> = ({ taskId, status, onNewP
           </div>
         </>
       )}
+
+      {/*
+        Rendered unconditionally (not gated on isCompleted) so the segment
+        list and any in-flight "regenerating" state survive the status
+        temporarily leaving 'completed' while a regeneration runs, and reuse
+        the same SSE stream (see Step4Page's reconnectKey / onRegenerateStart).
+      */}
+      <SegmentList taskId={taskId} status={status} onRegenerateStart={onRegenerateStart} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { Step3Confirm } from '../components/Step3Confirm'
 import { usePodcastContext } from '../contexts/PodcastContext'
 import { podcastApi, getErrorMessage } from '../services/api'
 import { MicrophoneIcon } from '../components/icons'
+import { getTonePrompt } from '../data/tonePresets'
 
 const STEPS = [
   'Upload Content',
@@ -21,7 +22,8 @@ export const Step3Page: React.FC = () => {
     setTaskId, 
     optimizedTranscript,
     setOptimizedTranscript,
-    voiceSettings
+    voiceSettings,
+    toneSettings
   } = usePodcastContext()
 
   useEffect(() => {
@@ -39,7 +41,11 @@ export const Step3Page: React.FC = () => {
     if (!currentTaskId) return
 
     try {
-      await podcastApi.step3GenerateAudio(currentTaskId, optimizedTranscript, voiceSettings)
+      const styleSettings = {
+        'Speaker 1': getTonePrompt(toneSettings['Speaker 1']),
+        'Speaker 2': getTonePrompt(toneSettings['Speaker 2']),
+      }
+      await podcastApi.step3GenerateAudio(currentTaskId, optimizedTranscript, voiceSettings, styleSettings)
       navigate(`/result/${currentTaskId}`)
     } catch (error) {
       console.error('Failed to start audio generation:', error)

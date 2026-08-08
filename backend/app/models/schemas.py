@@ -58,6 +58,10 @@ class Step3Request(BaseModel):
     """Request model for step 3 (generate audio)"""
     final_transcript: Optional[List[Tuple[str, str]]] = None  # Optional: final transcript to use for audio generation
     voice_settings: Optional[Dict[str, str]] = None  # Optional: custom voice settings {"Speaker 1": "Kore", "Speaker 2": "Charon"}
+    style_settings: Optional[Dict[str, str]] = None  # Optional: per-speaker TTS prompt, keyed like voice_settings
+    #   {"Speaker 1": "Speak warmly and conversationally", "Speaker 2": "Speak with energy and curiosity"}
+    # Unknown keys are ignored; missing speakers fall back to the module default prompt.
+    # Each value is capped at 200 characters (enforced in the route).
 
 
 class TaskStatusResponse(BaseModel):
@@ -69,6 +73,9 @@ class TaskStatusResponse(BaseModel):
     error: Optional[str] = None
     audio_file: Optional[str] = None
     transcript_file: Optional[str] = None
+    total_segments: Optional[int] = None   # None until audio generation has run
+    failed_segments: Optional[int] = None  # 0 when everything succeeded
+    partial: bool = False                  # True iff failed_segments > 0
 
 
 class ProgressEvent(BaseModel):
@@ -77,4 +84,32 @@ class ProgressEvent(BaseModel):
     status: TaskStatus
     progress: int
     message: Optional[str] = None
+    total_segments: Optional[int] = None   # None until audio generation has run
+    failed_segments: Optional[int] = None  # 0 when everything succeeded
+    partial: bool = False                  # True iff failed_segments > 0
+
+
+class SegmentInfo(BaseModel):
+    """Per-segment TTS state, as recorded in the task's metadata.json"""
+    index: int          # 1-based, matches metadata ordering and filenames
+    speaker: str
+    text: str
+    voice: str
+    success: bool
+    error: Optional[str] = None  # populated when success is False
+
+
+class SegmentsResponse(BaseModel):
+    """Response model for GET /api/segments/{task_id}"""
+    total: int
+    failed: int
+    segments: List[SegmentInfo]
+
+
+class RegenerateRequest(BaseModel):
+    """Request model for POST /api/regenerate/{task_id}"""
+    segment_index: int             # required, 1-based
+    text: Optional[str] = None     # optional; reuses the existing text when omitted
+    voice: Optional[str] = None    # optional; reuses the existing voice when omitted
+    style_prompt: Optional[str] = None  # optional TTS style prompt for this segment only. Max 200 chars.
 
