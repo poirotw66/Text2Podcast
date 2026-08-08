@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Stepper } from '../components/Stepper'
 import { Step2Edit } from '../components/Step2Edit'
 import { usePodcastContext } from '../contexts/PodcastContext'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 import { MicrophoneIcon } from '../components/icons'
 
 const STEPS = [
@@ -37,9 +37,9 @@ export const Step2Page: React.FC = () => {
       const response = await podcastApi.step2OptimizeTranscript(currentTaskId, editedText)
       setOptimizedTranscript(response.optimized_transcript)
       navigate(`/confirm/${currentTaskId}`)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to optimize transcript:', error)
-      alert(error.response?.data?.detail || 'Failed to optimize transcript')
+      alert(getErrorMessage(error, 'Failed to optimize transcript'))
     }
   }
 

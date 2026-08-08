@@ -1,15 +1,46 @@
 """
 Task manager for tracking job status and progress
+
+IMPORTANT — single-process constraint: this store keeps all task state in an
+in-memory dict inside one Python process. It is NOT shared across processes, so
+running the API with `uvicorn --workers >1` (or any multi-process deployment)
+silently breaks it: a request can land on a worker process that never created
+(or never updated) the task it's asking about. Run this API with a single worker
+until TaskManager is backed by something shared (Redis, SQLite, etc.).
+
+To make that swap possible without touching call sites, TaskManager implements
+TaskStore below — a small abstract interface capturing every operation the rest
+of the app needs. A future RedisTaskStore/SQLiteTaskStore can simply implement
+the same interface and be handed to get_task_manager() as a drop-in replacement.
+This module does not implement such a backend; only the in-memory one.
 """
+import asyncio
+import logging
+import os
+import shutil
+import threading
 import uuid
+from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, Optional
-from datetime import datetime
+
 from app.models.schemas import TaskStatus
+
+logger = logging.getLogger(__name__)
+
+# backend/outputs/<task_id>/ — cleaned up whenever a task is evicted.
+OUTPUTS_DIR = Path(__file__).parent.parent.parent / "outputs"
+
+# How long a task is kept after its last update before it's eligible for eviction.
+DEFAULT_TASK_TTL_SECONDS = 24 * 60 * 60  # 24h
+# Hard cap on the number of tasks kept in memory; oldest-updated tasks are evicted first.
+DEFAULT_MAX_TASKS = 1000
 
 
 class Task:
     """Task model"""
-    
+
     def __init__(self, task_id: str, text_content: str):
         self.task_id = task_id
         self.text_content = text_content
@@ -21,7 +52,10 @@ class Task:
         self.transcript_file: Optional[str] = None
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
-    
+        # Set (via TaskManager) whenever this task's status/progress/files change, so
+        # the SSE stream can await it instead of polling the task dict every second.
+        self.update_event = asyncio.Event()
+
     def update_status(self, status: TaskStatus, progress: int = None, message: str = None):
         """Update task status"""
         self.status = status
@@ -30,13 +64,13 @@ class Task:
         if message:
             self.message = message
         self.updated_at = datetime.now()
-    
+
     def set_error(self, error: str):
         """Set error message"""
         self.error = error
         self.status = TaskStatus.FAILED
         self.updated_at = datetime.now()
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary"""
         return {
@@ -52,24 +86,121 @@ class Task:
         }
 
 
-class TaskManager:
-    """In-memory task manager"""
-    
-    def __init__(self):
+class TaskStore(ABC):
+    """
+    Minimal interface the rest of the app depends on. Implement this to swap the
+    in-memory TaskManager for a shared backend (Redis, SQLite, ...) without changing
+    any call site.
+    """
+
+    @abstractmethod
+    def create_task(self, text_content: str) -> str: ...
+
+    @abstractmethod
+    def get_task(self, task_id: str) -> Optional[Task]: ...
+
+    @abstractmethod
+    def update_task_status(
+        self, task_id: str, status: TaskStatus, progress: int = None, message: str = None
+    ) -> bool: ...
+
+    @abstractmethod
+    def set_task_error(self, task_id: str, error: str) -> bool: ...
+
+    @abstractmethod
+    def set_task_files(
+        self, task_id: str, audio_file: str = None, transcript_file: str = None
+    ) -> bool: ...
+
+
+class TaskManager(TaskStore):
+    """
+    In-memory task manager.
+
+    Thread-safe: every mutation (and the eviction sweep) is guarded by a
+    threading.Lock, since task state can be updated both from the asyncio event
+    loop thread and from worker threads in the audio-generation pipeline.
+    """
+
+    def __init__(self, ttl_seconds: Optional[int] = None, max_tasks: Optional[int] = None):
         """Initialize task manager"""
         self.tasks: Dict[str, Task] = {}
-    
+        self._lock = threading.Lock()
+        self._ttl_seconds = (
+            ttl_seconds if ttl_seconds is not None
+            else int(os.getenv("TASK_TTL_SECONDS", str(DEFAULT_TASK_TTL_SECONDS)))
+        )
+        self._max_tasks = (
+            max_tasks if max_tasks is not None
+            else int(os.getenv("TASK_MAX_COUNT", str(DEFAULT_MAX_TASKS)))
+        )
+        # Captured lazily so we can wake up SSE waiters from any thread via
+        # call_soon_threadsafe, even if a mutation happens off the event loop thread.
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def _capture_loop(self) -> None:
+        if self._loop is None:
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass  # Called from a non-asyncio context (e.g. a script); no loop to notify.
+
+    def _signal_update(self, task: Task) -> None:
+        """Wake up any SSE listeners waiting on this task's update_event. Thread-safe."""
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(task.update_event.set)
+        else:
+            task.update_event.set()
+
+    def _remove_task_locked(self, task_id: str) -> None:
+        """Remove a task and its output directory. Caller must hold self._lock."""
+        self.tasks.pop(task_id, None)
+        task_dir = OUTPUTS_DIR / task_id
+        if task_dir.exists():
+            try:
+                shutil.rmtree(task_dir, ignore_errors=True)
+            except OSError as e:
+                logger.warning("Failed to clean up output directory for evicted task %s: %s", task_id, e)
+
+    def _evict_locked(self) -> None:
+        """
+        Evict TTL-expired tasks, then (if still over the cap) the oldest-updated
+        remaining tasks. Caller must hold self._lock. Called lazily on every
+        create/get rather than from a background thread.
+        """
+        now = datetime.now()
+        ttl = timedelta(seconds=self._ttl_seconds)
+        expired_ids = [tid for tid, task in self.tasks.items() if now - task.updated_at > ttl]
+        for tid in expired_ids:
+            logger.info("Evicting expired task %s (TTL %ds)", tid, self._ttl_seconds)
+            self._remove_task_locked(tid)
+
+        if len(self.tasks) > self._max_tasks:
+            overflow = len(self.tasks) - self._max_tasks
+            oldest_ids = sorted(self.tasks, key=lambda tid: self.tasks[tid].updated_at)[:overflow]
+            for tid in oldest_ids:
+                logger.info("Evicting task %s to stay under max task cap (%d)", tid, self._max_tasks)
+                self._remove_task_locked(tid)
+
     def create_task(self, text_content: str) -> str:
         """Create a new task and return task_id"""
-        task_id = str(uuid.uuid4())
-        task = Task(task_id, text_content)
-        self.tasks[task_id] = task
-        return task_id
-    
+        self._capture_loop()
+        with self._lock:
+            task_id = str(uuid.uuid4())
+            task = Task(task_id, text_content)
+            self.tasks[task_id] = task
+            # Evict after inserting (not before) so the cap is enforced against the
+            # post-insert size — evicting first would let the dict grow to
+            # max_tasks + 1 right after each creation.
+            self._evict_locked()
+            return task_id
+
     def get_task(self, task_id: str) -> Optional[Task]:
         """Get task by ID"""
-        return self.tasks.get(task_id)
-    
+        with self._lock:
+            self._evict_locked()
+            return self.tasks.get(task_id)
+
     def update_task_status(
         self,
         task_id: str,
@@ -78,29 +209,38 @@ class TaskManager:
         message: str = None
     ) -> bool:
         """Update task status"""
-        task = self.get_task(task_id)
+        with self._lock:
+            task = self.tasks.get(task_id)
+            if task:
+                task.update_status(status, progress, message)
         if task:
-            task.update_status(status, progress, message)
+            self._signal_update(task)
             return True
         return False
-    
+
     def set_task_error(self, task_id: str, error: str) -> bool:
         """Set task error"""
-        task = self.get_task(task_id)
+        with self._lock:
+            task = self.tasks.get(task_id)
+            if task:
+                task.set_error(error)
         if task:
-            task.set_error(error)
+            self._signal_update(task)
             return True
         return False
-    
+
     def set_task_files(self, task_id: str, audio_file: str = None, transcript_file: str = None) -> bool:
         """Set task output files"""
-        task = self.get_task(task_id)
+        with self._lock:
+            task = self.tasks.get(task_id)
+            if task:
+                if audio_file:
+                    task.audio_file = audio_file
+                if transcript_file:
+                    task.transcript_file = transcript_file
+                task.updated_at = datetime.now()
         if task:
-            if audio_file:
-                task.audio_file = audio_file
-            if transcript_file:
-                task.transcript_file = transcript_file
-            task.updated_at = datetime.now()
+            self._signal_update(task)
             return True
         return False
 
@@ -115,4 +255,3 @@ def get_task_manager() -> TaskManager:
     if _task_manager is None:
         _task_manager = TaskManager()
     return _task_manager
-

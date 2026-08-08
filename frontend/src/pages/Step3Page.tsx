@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Stepper } from '../components/Stepper'
 import { Step3Confirm } from '../components/Step3Confirm'
 import { usePodcastContext } from '../contexts/PodcastContext'
-import { podcastApi } from '../services/api'
+import { podcastApi, getErrorMessage } from '../services/api'
 import { MicrophoneIcon } from '../components/icons'
 
 const STEPS = [
@@ -41,9 +41,9 @@ export const Step3Page: React.FC = () => {
     try {
       await podcastApi.step3GenerateAudio(currentTaskId, optimizedTranscript, voiceSettings)
       navigate(`/result/${currentTaskId}`)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to start audio generation:', error)
-      alert(error.response?.data?.detail || 'Failed to start audio generation')
+      alert(getErrorMessage(error, 'Failed to start audio generation'))
     }
   }
 

@@ -1,15 +1,39 @@
-.env
-.DS_Store
-output/笑傲江湖_gemini/
-backend/outputs/
+# === Node / frontend ===
+node_modules/
+dist/
+.vite/
+*.local
 
-# Python compiled files
+# === Python ===
 *.pyc
 **/*.pyc
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 
-# Cursor IDE folders
+# === Env / secrets ===
+.env
+.env.*
+!.env.example
+*-service-account.json
+gcp-credentials.json
+
+# === Generated outputs (runtime, not sample data) ===
+# Note: output/ and example/ at the repo root hold intentionally committed
+# sample artifacts and are NOT ignored wholesale — only backend runtime dirs
+# and this specific pre-existing generated subfolder are.
+output/笑傲江湖_gemini/
+backend/outputs/
+backend/uploads/
+
+# === Editor / OS ===
 .cursor/
 .shared/
+.DS_Store
+.idea/
+.vscode/

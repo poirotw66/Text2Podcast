@@ -1,0 +1,13 @@
+# Dependencies for the unmaintained command-line scripts in this directory only.
+# The maintained backend has its own pinned requirements file at backend/requirements.txt.
+#
+# pydub is kept here deliberately (unlike the backend, which replaced it with a direct
+# ffmpeg subprocess call): these scripts are explicitly unmaintained legacy references,
+# not something we're actively hardening. Note that pydub depends on the stdlib
+# `audioop` module, which PEP 594 removed in Python 3.13 (and the usual `audioop-lts`
+# shim isn't installable on Python 3.11 either) — so these scripts will not run at all
+# on Python 3.13+, and may need audioop-lts or a pydub replacement on other versions.
+openai>=1.0.0
+pydub>=0.25.1
+python-dotenv>=1.0.0
+google-cloud-texttospeech>=2.31.0

@@ -1,11 +1,29 @@
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-openai>=1.0.0
-google-cloud-texttospeech>=2.31.0
-pydantic>=2.0.0
-python-multipart>=0.0.6
-python-dotenv>=1.0.0
-pydub>=0.25.1
-sse-starlette>=1.6.5
-httpx>=0.24.0
-
+# Every direct dependency is pinned to an exact, known-good version (no lockfile
+# tool is set up for this plain requirements.txt project, so this file is the
+# reproducibility boundary). Re-verify with `pip index versions <pkg>` before bumping.
+#
+# pydub was removed: it's unmaintained since 2021 and depends on the stdlib
+# `audioop` module, which PEP 594 removed in Python 3.13 (and `audioop-lts`, the
+# usual shim, isn't installable on Python 3.11 either). Audio merging now shells
+# out to the `ffmpeg` binary directly (see app/services/audio_service.py) — ffmpeg
+# was already pydub's runtime dependency for this, so nothing new is required, but
+# the `ffmpeg` binary itself must be present on PATH.
+#
+# httpx is not pinned here: it's only an indirect dependency (openai's HTTP client),
+# not something this codebase imports directly, and openai==2.53.0 already pins a
+# compatible version of it. The old `httpx>=0.24.0` workaround-driven pin above is
+# gone along with the try/except client-init workaround it existed for.
+#
+# google-genai is the LLM_PROVIDER=gemini backend (app/services/llm/gemini_service.py),
+# the default script-writing provider. It's the current `google-genai` SDK, not the
+# deprecated `google-generativeai` package. openai stays pinned too: LLM_PROVIDER=openai
+# still selects the original OpenAI-backed script writer.
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+openai==2.53.0
+google-genai==2.17.0
+google-cloud-texttospeech==2.37.0
+pydantic==2.13.4
+python-multipart==0.0.32
+python-dotenv==1.2.2
+sse-starlette==3.4.8

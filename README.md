@@ -2,17 +2,26 @@
 
 一個全端 Podcast 生成應用程式，可從文字內容自動生成專業的 Podcast 音訊。使用 AI 技術將文字轉換為自然流暢的對話式 Podcast，支援多種長度模式和語音設定。
 
-> **專案命名說明**：本專案原名 PPT2Video，實際功能為「文字 → Podcast」，故建議使用 **Text2Podcast** 或 **Podcast Generator**（與 Web 介面標題一致）。若需保留原 repo 名稱可僅更新 README 標題與描述。
-
 ## ✨ 功能特色
 
-- 📝 **智能轉錄生成**：使用 AI 將文字內容轉換為自然的 Podcast 對話稿
+- 📝 **智能轉錄生成**：使用 LLM 將文字內容轉換為自然的 Podcast 對話稿，**預設使用 Gemini**（`LLM_PROVIDER=gemini`），也可切換回 OpenAI（`LLM_PROVIDER=openai`）
 - 🎙️ **多種長度模式**：支援 SHORT（7 分鐘）、MEDIUM（15 分鐘）、LONG（30 分鐘）
-- 🔊 **高品質語音合成**：使用 Google Cloud TTS (Gemini 2.5 Flash) 生成自然語音
+- 🔊 **高品質語音合成**：使用 Google Cloud TTS 生成自然語音（固定使用 Google，非可選項），模型由 `TTS_MODEL` 指定
 - 🎭 **雙講者對話**：支援兩個不同角色的講者進行對話
 - 🎨 **現代化 Web 介面**：React + TypeScript 建構的直觀使用者介面
 - 📊 **即時進度追蹤**：透過 Server-Sent Events (SSE) 即時顯示處理進度
 - 💾 **完整輸出管理**：自動合併音訊檔案並提供下載功能
+
+## 🤖 使用了哪些 AI 服務？
+
+本專案使用**兩個獨立的 AI 服務**，分別負責不同工作，**兩者都是 Google／OpenAI 這類第三方 API，不是同一個服務**：
+
+| 工作 | 服務 | 對應程式 | 所需憑證 |
+| --- | --- | --- | --- |
+| **腳本生成**（Step 1 產生逐字稿、Step 2 優化為講者分段） | **可切換**：預設 **Gemini**，也可設定 `LLM_PROVIDER=openai` 改用 **OpenAI** | `backend/app/services/llm/` | Gemini：`GEMINI_API_KEY`（或改用 Vertex AI：`GOOGLE_CLOUD_PROJECT` + 既有的 `GOOGLE_APPLICATION_CREDENTIALS`）。OpenAI：`OPENAI_API_KEY`（僅在 `LLM_PROVIDER=openai` 時需要） |
+| **語音合成**（Step 3 文字轉語音） | **固定為 Google Cloud TTS**（模型由 `TTS_MODEL` 指定，預設 `gemini-3.1-flash-tts-preview`），供應商不受 `LLM_PROVIDER` 影響，也無法切換 | `backend/app/services/audio_service.py` | `GOOGLE_APPLICATION_CREDENTIALS`（Google Cloud 服務帳戶金鑰） |
+
+也就是說：**預設情況下（`LLM_PROVIDER` 未設定 = `gemini`），整個專案只需要 Google 憑證即可運作**，不再強制要求 OpenAI API Key。完整環境變數說明見 [`.env.example`](.env.example)。
 
 ## 🖼️ 功能截圖
 
@@ -61,7 +70,10 @@ Text2Podcast/
 │   ├── app/
 │   │   ├── api/         # API 路由
 │   │   ├── models/      # 資料模型
+│   │   ├── prompts.py   # Prompt 模板（供應商無關）
 │   │   ├── services/    # 業務邏輯服務
+│   │   │   ├── llm/     # LLM 供應商實作（Gemini 預設／OpenAI 可選）
+│   │   │   └── ...      # audio_service、task_manager、transcript_service
 │   │   └── utils/       # 工具函數
 │   ├── outputs/         # 生成的輸出檔案
 │   └── uploads/         # 上傳的檔案
@@ -72,19 +84,26 @@ Text2Podcast/
 │   │   ├── services/    # API 服務
 │   │   └── contexts/    # React Context
 │   └── public/          # 靜態資源
-├── src/                 # 共用程式碼
-│   └── prompt.py        # AI Prompt 模板
-└── example/             # 範例檔案
+├── scripts/legacy/      # 早期命令列腳本，僅供參考，不在維護與 CI 範圍內
+├── src/
+│   └── prompt.py        # 向後相容 shim，實際 Prompt 模板已移至 backend/app/prompts.py
+├── example/             # 範例轉錄稿
+├── images/              # README 截圖
+└── .env.example         # 完整環境變數說明
 ```
 
 ## 🚀 快速開始
 
 ### 前置需求
 
-- Python 3.8+
-- Node.js 16+
-- Google Cloud 專案（用於 TTS API）
-- OpenAI API Key（用於轉錄生成）
+- Python 3.11+
+- Node.js 20.19+ 或 22.12+（Vite 8 與 ESLint 10 的最低需求，Node 16／18 無法安裝）
+- **ffmpeg**（後端合併音訊片段時會直接呼叫 `ffmpeg` 執行檔，需安裝並在 `PATH` 中可找到）
+- Google Cloud 專案與服務帳戶金鑰（`GOOGLE_APPLICATION_CREDENTIALS`）：**必要**，用於語音合成（TTS API，固定使用 Google）
+- Gemini API Key（`GEMINI_API_KEY`，或改用 Vertex AI）：**預設腳本生成所需**（`LLM_PROVIDER=gemini`，預設值）
+- OpenAI API Key：**僅在**將 `LLM_PROVIDER` 改設為 `openai` 時才需要，預設不需要
+
+詳見上方「使用了哪些 AI 服務？」與 [`.env.example`](.env.example)。
 
 ### 後端設定
 
@@ -95,23 +114,35 @@ cd backend
 pip install -r requirements.txt
 ```
 
+`backend/requirements.txt` 中每個直接依賴都已釘選為明確版本號。
+
 2. **設定環境變數**
 
-建立 `.env` 檔案在 `backend/` 目錄下：
+建立 `.env` 檔案在 `backend/` 目錄下（**預設**：`LLM_PROVIDER=gemini`，腳本生成與語音合成都只需要 Google 憑證）：
 
 ```env
-OPENAI_API_KEY=your_openai_api_key
 GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-GOOGLE_CLOUD_PROJECT=your_project_id
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 或使用環境變數：
 
 ```bash
-export OPENAI_API_KEY=your_openai_api_key
 export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
-export GOOGLE_CLOUD_PROJECT=your_project_id
+export GEMINI_API_KEY=your_gemini_api_key
 ```
+
+若想改用 OpenAI 生成腳本（語音合成仍固定為 Google TTS），另外設定：
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key
+```
+
+完整環境變數清單（含 `LLM_PROVIDER`、`GEMINI_MODEL`、`GOOGLE_CLOUD_PROJECT`／
+`GOOGLE_CLOUD_LOCATION`（Vertex AI 備援）、`OPENAI_MODEL`、`CORS_ALLOW_ORIGINS`、
+`API_KEY`、速率限制與 TaskManager 逾時等可選設定）請見專案根目錄的
+[`.env.example`](.env.example)，以及 [`backend/README.md`](backend/README.md) 中的說明。
 
 3. **啟動後端服務**
 
@@ -119,6 +150,10 @@ export GOOGLE_CLOUD_PROJECT=your_project_id
 cd backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+⚠️ **重要：後端目前僅支援單一 process 執行**（`TaskManager` 是 process 內的
+記憶體儲存，未跨 process 共享），請勿使用 `--workers` 啟動多個 worker，否則
+任務狀態查詢與 SSE 進度串流會不穩定。詳見 [`backend/README.md`](backend/README.md)。
 
 後端服務將在以下位置可用：
 - API: http://localhost:8000
@@ -181,25 +216,26 @@ npm run preview
    - 預覽音訊檔案
    - 下載最終的 Podcast 音訊檔
 
-### 命令列使用（舊版）
+### 命令列使用（舊版，僅供參考）
 
-專案也提供命令列工具用於直接從轉錄檔生成音訊：
+專案早期提供的命令列工具已移至 `scripts/legacy/`，僅作為參考保留，
+目前維護的音訊生成邏輯在 `backend/app/services/audio_service.py`：
 
 ```bash
 # 基本使用
-python generate_audio.py example/3_enhance_transcipt.txt
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt
 
 # 指定輸出目錄
-python generate_audio.py example/3_enhance_transcipt.txt -o audio_output
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt -o audio_output
 
 # 使用標準模型（節省成本）
-python generate_audio.py example/3_enhance_transcipt.txt -m tts-1
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt -m tts-1
 
 # 生成並自動合併音訊
-python generate_audio.py example/3_enhance_transcipt.txt --merge
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt --merge
 
 # 完整參數範例
-python generate_audio.py example/3_enhance_transcipt.txt \
+python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt \
     -o audio_output \
     -m tts-1-hd \
     --merge \
@@ -210,22 +246,22 @@ python generate_audio.py example/3_enhance_transcipt.txt \
 
 ### 上傳與處理
 
-- `POST /api/upload` - 上傳文字內容並開始 Podcast 生成
-- `POST /api/step1` - 步驟 1：生成初始轉錄稿
+- `POST /api/upload` - 上傳文字內容並建立任務（步驟 0）
+- `POST /api/step1/{task_id}` - 步驟 1：生成初始轉錄稿
 - `POST /api/step2` - 步驟 2：優化轉錄稿
-- `POST /api/step3` - 步驟 3：生成音訊
+- `POST /api/step3/{task_id}` - 步驟 3：生成音訊
+
+以上四個端點若設定了 `API_KEY` 環境變數，需在請求中帶上相符的 `X-API-Key`
+標頭才能呼叫，並套用簡易的每 IP 速率限制（可透過 `RATE_LIMIT_*` 環境變數調整）。
+未設定 `API_KEY` 時維持開放，本機開發不受影響。詳見 [`backend/README.md`](backend/README.md)。
 
 ### 查詢與下載
 
 - `GET /api/status/{task_id}` - 取得任務狀態
 - `GET /api/download/{task_id}/audio` - 下載音訊檔案
 - `GET /api/download/{task_id}/transcript` - 下載轉錄檔
+- `GET /api/transcript/{task_id}` - 以 JSON 格式取得轉錄稿內容
 - `GET /api/stream/{task_id}` - SSE 串流取得進度更新
-
-### 設定
-
-- `GET /api/settings` - 取得設定
-- `POST /api/settings` - 更新設定
 
 詳細的 API 文件可在 http://localhost:8000/docs 查看。
 
@@ -250,37 +286,57 @@ python generate_audio.py example/3_enhance_transcipt.txt \
 生成的檔案結構：
 
 ```
-outputs/{task_id}/
-├── transcript.txt          # 轉錄稿
-├── optimized_transcript.txt # 優化後的轉錄稿
-├── metadata.json           # 音訊檔案元資料
-├── Speaker_1_001.mp3       # 講者 1 的音訊片段
-├── Speaker_2_002.mp3       # 講者 2 的音訊片段
-└── merged_audio.mp3        # 合併後的完整音訊
+backend/outputs/{task_id}/
+├── initial_transcript.txt    # Step 1 產出的初始逐字稿（純文字）
+├── optimized_transcript.txt  # Step 2 優化後的講者分段
+├── final_transcript.txt      # Step 3 實際送去合成的版本
+├── metadata.json             # 音訊片段元資料（含 model_used、language_code）
+├── Speaker_1_001.mp3         # 講者 1 的音訊片段
+├── Speaker_2_002.mp3         # 講者 2 的音訊片段
+└── merged_audio.mp3          # 合併後的完整音訊
 ```
+
+> 講者分段的轉錄檔（`optimized_transcript.txt`／`final_transcript.txt`）內容為
+> **JSON**（`[{"speaker": ..., "text": ...}, ...]`），副檔名維持 `.txt`。舊版以
+> Python `repr` 儲存的檔案仍可讀取（向後相容），但新檔一律寫成 JSON。
 
 ## 🔧 技術棧
 
 ### 後端
 - **FastAPI** - 現代化的 Python Web 框架
-- **Google Cloud TTS** - 語音合成服務
-- **OpenAI API** - AI 轉錄生成
-- **Pydub** - 音訊處理
+- **Google Cloud TTS**（預設 `gemini-3.1-flash-tts-preview`，可用 `TTS_MODEL` 覆蓋）- 語音合成服務，固定使用 Google，不可切換。此為 preview 模型，若不穩可改回 GA 的 `gemini-2.5-flash-tts`
+- **AI 轉錄生成**（腳本撰寫，`backend/app/services/llm/`）- 可切換供應商，經 `LLM_PROVIDER` 選擇：
+  - **Gemini**（預設，`google-genai` SDK，`gemini-3.6-flash`，可用 `GEMINI_MODEL` 覆蓋）
+  - **OpenAI**（`LLM_PROVIDER=openai`，Responses API，`gpt-5-mini`）
+  - 兩者皆使用 structured outputs（JSON Schema）取得優化後的逐句腳本
+- **ffmpeg**（透過 `subprocess` 直接呼叫）- 音訊合併處理，取代已停止維護且在
+  Python 3.13 上會因 `audioop` 模組被移除而失效的 Pydub
 - **SSE-Starlette** - Server-Sent Events 支援
 
 ### 前端
-- **React 18** - UI 框架
-- **TypeScript** - 型別安全
-- **Vite** - 建置工具
-- **React Router** - 路由管理
+- **React 19** - UI 框架
+- **TypeScript 6** - 型別安全（`tsc -b`，使用 project references）
+- **Vite 8** - 建置工具
+- **React Router 7** - 路由管理
 - **Axios** - HTTP 客戶端
+- **ESLint 10 + Prettier** - 靜態檢查與格式化（`npm run lint`／`npm run format`）
+- **jsPDF + html2canvas-pro** - 轉錄稿匯出 PDF；採用點陣化路徑，中文字才能
+  以瀏覽器字型正確算繪
 
 ## 📝 注意事項
 
-- 需要有效的 OpenAI API Key 和 Google Cloud 憑證
+- 需要有效的 Google Cloud 憑證（`GOOGLE_APPLICATION_CREDENTIALS`，語音合成必要，
+  且為預設 Gemini 腳本生成的備援憑證來源）；`OPENAI_API_KEY` 僅在
+  `LLM_PROVIDER=openai` 時才需要，預設（Gemini）不需要
 - 確保 Google Cloud 專案已啟用 Text-to-Speech API
+- 需安裝 `ffmpeg` 並在 `PATH` 中可找到（後端合併音訊片段時會直接呼叫）
 - 音訊生成可能需要一些時間，取決於內容長度
-- 建議在生產環境中設定適當的 CORS 政策
+- CORS 允許來源由 `CORS_ALLOW_ORIGINS` 環境變數控制（預設僅允許本機開發用的
+  origin），部署到生產環境時請設定為實際的前端網域
+- 目前後端僅支援單一 process 執行（`TaskManager` 為 process 內記憶體儲存），
+  請勿以多個 worker 啟動，詳見 [`backend/README.md`](backend/README.md)
+- 建議在對外開放的環境中設定 `API_KEY` 與速率限制環境變數，避免任意呼叫者
+  消耗 OpenAI／Google Cloud 額度
 
 ## 🤝 貢獻
 
