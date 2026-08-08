@@ -2,13 +2,11 @@
 
 一個全端 Podcast 生成應用程式，可從文字內容自動生成專業的 Podcast 音訊。使用 AI 技術將文字轉換為自然流暢的對話式 Podcast，支援多種長度模式和語音設定。
 
-> **專案命名說明**：本專案原名 PPT2Video，實際功能為「文字 → Podcast」，故建議使用 **Text2Podcast** 或 **Podcast Generator**（與 Web 介面標題一致）。若需保留原 repo 名稱可僅更新 README 標題與描述。
-
 ## ✨ 功能特色
 
 - 📝 **智能轉錄生成**：使用 LLM 將文字內容轉換為自然的 Podcast 對話稿，**預設使用 Gemini**（`LLM_PROVIDER=gemini`），也可切換回 OpenAI（`LLM_PROVIDER=openai`）
 - 🎙️ **多種長度模式**：支援 SHORT（7 分鐘）、MEDIUM（15 分鐘）、LONG（30 分鐘）
-- 🔊 **高品質語音合成**：使用 Google Cloud TTS (Gemini 2.5 Flash) 生成自然語音（固定使用 Google，非可選項）
+- 🔊 **高品質語音合成**：使用 Google Cloud TTS 生成自然語音（固定使用 Google，非可選項），模型由 `TTS_MODEL` 指定
 - 🎭 **雙講者對話**：支援兩個不同角色的講者進行對話
 - 🎨 **現代化 Web 介面**：React + TypeScript 建構的直觀使用者介面
 - 📊 **即時進度追蹤**：透過 Server-Sent Events (SSE) 即時顯示處理進度
@@ -72,7 +70,10 @@ Text2Podcast/
 │   ├── app/
 │   │   ├── api/         # API 路由
 │   │   ├── models/      # 資料模型
+│   │   ├── prompts.py   # Prompt 模板（供應商無關）
 │   │   ├── services/    # 業務邏輯服務
+│   │   │   ├── llm/     # LLM 供應商實作（Gemini 預設／OpenAI 可選）
+│   │   │   └── ...      # audio_service、task_manager、transcript_service
 │   │   └── utils/       # 工具函數
 │   ├── outputs/         # 生成的輸出檔案
 │   └── uploads/         # 上傳的檔案
@@ -83,9 +84,12 @@ Text2Podcast/
 │   │   ├── services/    # API 服務
 │   │   └── contexts/    # React Context
 │   └── public/          # 靜態資源
-├── src/                 # 共用程式碼
+├── scripts/legacy/      # 早期命令列腳本，僅供參考，不在維護與 CI 範圍內
+├── src/
 │   └── prompt.py        # 向後相容 shim，實際 Prompt 模板已移至 backend/app/prompts.py
-└── example/             # 範例檔案
+├── example/             # 範例轉錄稿
+├── images/              # README 截圖
+└── .env.example         # 完整環境變數說明
 ```
 
 ## 🚀 快速開始
@@ -93,7 +97,7 @@ Text2Podcast/
 ### 前置需求
 
 - Python 3.11+
-- Node.js 16+
+- Node.js 20.19+ 或 22.12+（Vite 8 與 ESLint 10 的最低需求，Node 16／18 無法安裝）
 - **ffmpeg**（後端合併音訊片段時會直接呼叫 `ffmpeg` 執行檔，需安裝並在 `PATH` 中可找到）
 - Google Cloud 專案與服務帳戶金鑰（`GOOGLE_APPLICATION_CREDENTIALS`）：**必要**，用於語音合成（TTS API，固定使用 Google）
 - Gemini API Key（`GEMINI_API_KEY`，或改用 Vertex AI）：**預設腳本生成所需**（`LLM_PROVIDER=gemini`，預設值）
@@ -282,14 +286,19 @@ python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt \
 生成的檔案結構：
 
 ```
-outputs/{task_id}/
-├── transcript.txt          # 轉錄稿
-├── optimized_transcript.txt # 優化後的轉錄稿
-├── metadata.json           # 音訊檔案元資料
-├── Speaker_1_001.mp3       # 講者 1 的音訊片段
-├── Speaker_2_002.mp3       # 講者 2 的音訊片段
-└── merged_audio.mp3        # 合併後的完整音訊
+backend/outputs/{task_id}/
+├── initial_transcript.txt    # Step 1 產出的初始逐字稿（純文字）
+├── optimized_transcript.txt  # Step 2 優化後的講者分段
+├── final_transcript.txt      # Step 3 實際送去合成的版本
+├── metadata.json             # 音訊片段元資料（含 model_used、language_code）
+├── Speaker_1_001.mp3         # 講者 1 的音訊片段
+├── Speaker_2_002.mp3         # 講者 2 的音訊片段
+└── merged_audio.mp3          # 合併後的完整音訊
 ```
+
+> 講者分段的轉錄檔（`optimized_transcript.txt`／`final_transcript.txt`）內容為
+> **JSON**（`[{"speaker": ..., "text": ...}, ...]`），副檔名維持 `.txt`。舊版以
+> Python `repr` 儲存的檔案仍可讀取（向後相容），但新檔一律寫成 JSON。
 
 ## 🔧 技術棧
 
@@ -306,10 +315,13 @@ outputs/{task_id}/
 
 ### 前端
 - **React 19** - UI 框架
-- **TypeScript** - 型別安全
-- **Vite** - 建置工具
-- **React Router** - 路由管理
+- **TypeScript 6** - 型別安全（`tsc -b`，使用 project references）
+- **Vite 8** - 建置工具
+- **React Router 7** - 路由管理
 - **Axios** - HTTP 客戶端
+- **ESLint 10 + Prettier** - 靜態檢查與格式化（`npm run lint`／`npm run format`）
+- **jsPDF + html2canvas-pro** - 轉錄稿匯出 PDF；採用點陣化路徑，中文字才能
+  以瀏覽器字型正確算繪
 
 ## 📝 注意事項
 
