@@ -73,7 +73,7 @@ Text2Podcast/
 │   │   └── contexts/    # React Context
 │   └── public/          # 靜態資源
 ├── src/                 # 共用程式碼
-│   └── prompt.py        # AI Prompt 模板
+│   └── prompt.py        # 向後相容 shim，實際 Prompt 模板已移至 backend/app/prompts.py
 └── example/             # 範例檔案
 ```
 
@@ -81,8 +81,9 @@ Text2Podcast/
 
 ### 前置需求
 
-- Python 3.8+
+- Python 3.11+
 - Node.js 16+
+- **ffmpeg**（後端合併音訊片段時會直接呼叫 `ffmpeg` 執行檔，需安裝並在 `PATH` 中可找到）
 - Google Cloud 專案（用於 TTS API）
 - OpenAI API Key（用於轉錄生成）
 
@@ -94,6 +95,8 @@ Text2Podcast/
 cd backend
 pip install -r requirements.txt
 ```
+
+`backend/requirements.txt` 中每個直接依賴都已釘選為明確版本號。
 
 2. **設定環境變數**
 
@@ -113,12 +116,20 @@ export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
 export GOOGLE_CLOUD_PROJECT=your_project_id
 ```
 
+完整環境變數清單（含 `OPENAI_MODEL`、`CORS_ALLOW_ORIGINS`、`API_KEY`、速率限制與
+TaskManager 逾時等可選設定）請見專案根目錄的 [`.env.example`](.env.example)，
+以及 [`backend/README.md`](backend/README.md) 中的說明。
+
 3. **啟動後端服務**
 
 ```bash
 cd backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+⚠️ **重要：後端目前僅支援單一 process 執行**（`TaskManager` 是 process 內的
+記憶體儲存，未跨 process 共享），請勿使用 `--workers` 啟動多個 worker，否則
+任務狀態查詢與 SSE 進度串流會不穩定。詳見 [`backend/README.md`](backend/README.md)。
 
 後端服務將在以下位置可用：
 - API: http://localhost:8000
@@ -211,22 +222,22 @@ python scripts/legacy/generate_audio.py example/3_enhance_transcipt.txt \
 
 ### 上傳與處理
 
-- `POST /api/upload` - 上傳文字內容並開始 Podcast 生成
-- `POST /api/step1` - 步驟 1：生成初始轉錄稿
+- `POST /api/upload` - 上傳文字內容並建立任務（步驟 0）
+- `POST /api/step1/{task_id}` - 步驟 1：生成初始轉錄稿
 - `POST /api/step2` - 步驟 2：優化轉錄稿
-- `POST /api/step3` - 步驟 3：生成音訊
+- `POST /api/step3/{task_id}` - 步驟 3：生成音訊
+
+以上四個端點若設定了 `API_KEY` 環境變數，需在請求中帶上相符的 `X-API-Key`
+標頭才能呼叫，並套用簡易的每 IP 速率限制（可透過 `RATE_LIMIT_*` 環境變數調整）。
+未設定 `API_KEY` 時維持開放，本機開發不受影響。詳見 [`backend/README.md`](backend/README.md)。
 
 ### 查詢與下載
 
 - `GET /api/status/{task_id}` - 取得任務狀態
 - `GET /api/download/{task_id}/audio` - 下載音訊檔案
 - `GET /api/download/{task_id}/transcript` - 下載轉錄檔
+- `GET /api/transcript/{task_id}` - 以 JSON 格式取得轉錄稿內容
 - `GET /api/stream/{task_id}` - SSE 串流取得進度更新
-
-### 設定
-
-- `GET /api/settings` - 取得設定
-- `POST /api/settings` - 更新設定
 
 詳細的 API 文件可在 http://localhost:8000/docs 查看。
 
@@ -265,12 +276,14 @@ outputs/{task_id}/
 ### 後端
 - **FastAPI** - 現代化的 Python Web 框架
 - **Google Cloud TTS** - 語音合成服務
-- **OpenAI API** - AI 轉錄生成
-- **Pydub** - 音訊處理
+- **OpenAI API**（Responses API，`gpt-5-mini`）- AI 轉錄生成，使用 structured
+  outputs（JSON Schema）取得優化後的逐句腳本
+- **ffmpeg**（透過 `subprocess` 直接呼叫）- 音訊合併處理，取代已停止維護且在
+  Python 3.13 上會因 `audioop` 模組被移除而失效的 Pydub
 - **SSE-Starlette** - Server-Sent Events 支援
 
 ### 前端
-- **React 18** - UI 框架
+- **React 19** - UI 框架
 - **TypeScript** - 型別安全
 - **Vite** - 建置工具
 - **React Router** - 路由管理
@@ -280,8 +293,14 @@ outputs/{task_id}/
 
 - 需要有效的 OpenAI API Key 和 Google Cloud 憑證
 - 確保 Google Cloud 專案已啟用 Text-to-Speech API
+- 需安裝 `ffmpeg` 並在 `PATH` 中可找到（後端合併音訊片段時會直接呼叫）
 - 音訊生成可能需要一些時間，取決於內容長度
-- 建議在生產環境中設定適當的 CORS 政策
+- CORS 允許來源由 `CORS_ALLOW_ORIGINS` 環境變數控制（預設僅允許本機開發用的
+  origin），部署到生產環境時請設定為實際的前端網域
+- 目前後端僅支援單一 process 執行（`TaskManager` 為 process 內記憶體儲存），
+  請勿以多個 worker 啟動，詳見 [`backend/README.md`](backend/README.md)
+- 建議在對外開放的環境中設定 `API_KEY` 與速率限制環境變數，避免任意呼叫者
+  消耗 OpenAI／Google Cloud 額度
 
 ## 🤝 貢獻
 

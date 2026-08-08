@@ -2,20 +2,28 @@
 API routes for podcast generation
 """
 import asyncio
+import logging
+import os
+import secrets
+import time
+from collections import defaultdict, deque
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse, StreamingResponse
-from sse_starlette.sse import EventSourceResponse
 from typing import Dict, Optional
+
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Header, Request
+from fastapi.responses import FileResponse
+from sse_starlette.sse import EventSourceResponse
 
 from app.models.schemas import (
     UploadRequest, UploadResponse, TaskStatusResponse, TaskStatus, ProgressEvent,
     Step1Request, Step1Response, Step2Request, Step2Response, Step3Request
 )
-from app.services.task_manager import get_task_manager
+from app.services.task_manager import get_task_manager, Task
 from app.services.transcript_service import get_transcript_service
 from app.services.audio_service import get_audio_service
-from app.utils.file_handler import save_transcript, save_text_file
+from app.utils.file_handler import save_transcript, save_text_file, load_transcript, load_text_file
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["podcast"])
 
@@ -25,10 +33,53 @@ OUTPUTS_DIR = BASE_DIR / "outputs"
 UPLOADS_DIR = BASE_DIR / "uploads"
 
 
+# ---------------------------------------------------------------------------
+# Abuse protection: optional shared-secret auth + simple per-IP rate limiting.
+# Applied only to the expensive/mutating endpoints (upload, step1-3); /health is
+# never gated. If API_KEY is unset, auth is a no-op so local dev is unaffected.
+# ---------------------------------------------------------------------------
+API_KEY = os.getenv("API_KEY")
+RATE_LIMIT_WINDOW_SECONDS = float(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "20"))
+
+# Per-client-IP sliding window of request timestamps. Simple and in-process by
+# design (matches the single-process TaskManager constraint) — not shared across
+# workers/processes and never evicts idle IPs, which is an acceptable tradeoff for
+# a basic abuse guard but would need revisiting for a large, long-running deployment.
+_rate_limit_hits: Dict[str, deque] = defaultdict(deque)
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    now = time.monotonic()
+    hits = _rate_limit_hits[client_ip]
+    while hits and now - hits[0] > RATE_LIMIT_WINDOW_SECONDS:
+        hits.popleft()
+    if len(hits) >= RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+    hits.append(now)
+
+
+async def enforce_abuse_protection(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+) -> None:
+    """
+    Dependency applied to expensive/mutating endpoints:
+    - If API_KEY is set, requires a matching X-API-Key header (constant-time compare).
+    - Always applies a simple per-client-IP rate limit.
+    """
+    if API_KEY:
+        if not x_api_key or not secrets.compare_digest(x_api_key, API_KEY):
+            raise HTTPException(status_code=401, detail="Missing or invalid API key")
+
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
+
+
 async def process_podcast_task(task_id: str, text_content: str):
     """
     Background task to process podcast generation
-    
+
     Steps:
     1. Generate initial transcript (30%)
     2. Optimize transcript (60%)
@@ -38,157 +89,166 @@ async def process_podcast_task(task_id: str, text_content: str):
     task_manager = get_task_manager()
     transcript_service = get_transcript_service()
     audio_service = get_audio_service()
-    
+
     try:
         # Update to processing status
         task_manager.update_task_status(
             task_id, TaskStatus.PROCESSING, 10, "Starting podcast generation..."
         )
         await asyncio.sleep(0.5)  # Give SSE time to send initial status
-        
+
         # Step 1: Generate initial transcript
         task_manager.update_task_status(
             task_id, TaskStatus.STEP1, 30, "Generating initial transcript..."
         )
         await asyncio.sleep(0.5)
-        
-        transcript = transcript_service.generate_transcript(text_content)
-        
+
+        # transcript_service.generate_transcript() makes synchronous OpenAI calls;
+        # run it off the event loop so it doesn't block every other request/SSE stream.
+        transcript = await asyncio.to_thread(transcript_service.generate_transcript, text_content)
+
         # Save transcript
         task_output_dir = OUTPUTS_DIR / task_id
         transcript_file = task_output_dir / "transcript.txt"
         save_transcript(transcript, transcript_file)
-        
+
         task_manager.set_task_files(task_id, transcript_file=str(transcript_file))
         task_manager.update_task_status(
             task_id, TaskStatus.STEP2, 60, "Transcript generated, optimizing..."
         )
         await asyncio.sleep(0.5)
-        
+
         # Step 2 is already done in transcript_service.generate_transcript
         # So we move to Step 3
-        
+
         # Step 3: Generate audio
         task_manager.update_task_status(
             task_id, TaskStatus.STEP3, 70, "Generating audio files..."
         )
         await asyncio.sleep(0.5)
-        
-        audio_result = audio_service.generate_audio_from_transcript(
-            transcript, task_output_dir
+
+        # generate_audio_from_transcript is synchronous (it manages its own
+        # ThreadPoolExecutor internally for parallel TTS calls) — run the whole call
+        # in a worker thread so it doesn't block the event loop.
+        audio_result = await asyncio.to_thread(
+            audio_service.generate_audio_from_transcript, transcript, task_output_dir
         )
-        
+
         if audio_result["success"] == 0:
             raise Exception("Failed to generate any audio files")
-        
+
         task_manager.update_task_status(
             task_id, TaskStatus.STEP3, 90, "Merging audio files..."
         )
-        
+
         # Merge audio files
         metadata_file = Path(audio_result["metadata_file"])
         merged_audio_file = task_output_dir / "merged_audio.mp3"
-        
-        merged_file = audio_service.merge_audio_files(
-            metadata_file, merged_audio_file
+
+        merged_file = await asyncio.to_thread(
+            audio_service.merge_audio_files, metadata_file, merged_audio_file
         )
-        
+
         if not merged_file:
             raise Exception("Failed to merge audio files")
-        
+
         # Update task with final files
         task_manager.set_task_files(
             task_id,
             audio_file=str(merged_audio_file),
             transcript_file=str(transcript_file)
         )
-        
+
         task_manager.update_task_status(
             task_id, TaskStatus.COMPLETED, 100, "Podcast generation completed!"
         )
-        
+
     except Exception as e:
+        logger.exception("process_podcast_task failed for task %s", task_id)
         task_manager.set_task_error(task_id, str(e))
 
 
-@router.post("/upload", response_model=UploadResponse)
+@router.post("/upload", response_model=UploadResponse, dependencies=[Depends(enforce_abuse_protection)])
 async def upload_text(request: UploadRequest):
     """Upload text content and create task (Step 0)"""
     if not request.text or not request.text.strip():
         raise HTTPException(status_code=400, detail="Text content cannot be empty")
-    
+
     task_manager = get_task_manager()
     task_id = task_manager.create_task(request.text)
-    
+
     return UploadResponse(
         task_id=task_id,
         message="Task created successfully"
     )
 
 
-@router.post("/step1/{task_id}", response_model=Step1Response)
+@router.post("/step1/{task_id}", response_model=Step1Response, dependencies=[Depends(enforce_abuse_protection)])
 async def step1_generate_initial_transcript(task_id: str, request: Step1Request):
     """Step 1: Generate initial podcast transcript from text"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     transcript_service = get_transcript_service()
-    
+
     try:
         task_manager.update_task_status(
             task_id, TaskStatus.STEP1, 30, "Generating initial transcript..."
         )
-        
+
         # Get podcast length mode from request, default to MEDIUM
         podcast_length_mode = request.podcast_length_mode or "MEDIUM"
-        
-        # Only generate initial transcript (first step of transcript_service)
+
+        # Only generate initial transcript (first step of transcript_service).
+        # This is a synchronous OpenAI call — offload it so it doesn't block the loop.
         llm_service = transcript_service.llm_service
-        initial_transcript = llm_service.generate_initial_transcript(
-            task.text_content, 
-            podcast_length_mode=podcast_length_mode
+        initial_transcript = await asyncio.to_thread(
+            llm_service.generate_initial_transcript,
+            task.text_content,
+            podcast_length_mode=podcast_length_mode,
         )
-        
+
         # Save initial transcript
         task_output_dir = OUTPUTS_DIR / task_id
         task_output_dir.mkdir(parents=True, exist_ok=True)
         initial_transcript_file = task_output_dir / "initial_transcript.txt"
         save_text_file(initial_transcript, initial_transcript_file)
-        
+
         task_manager.set_task_files(task_id, transcript_file=str(initial_transcript_file))
         task_manager.update_task_status(
             task_id, TaskStatus.STEP1, 100, "Initial transcript generated"
         )
-        
+
         return Step1Response(
             task_id=task_id,
             initial_transcript=initial_transcript,
             message="Initial transcript generated successfully"
         )
     except Exception as e:
+        logger.exception("Step 1 failed for task %s", task_id)
         task_manager.set_task_error(task_id, str(e))
         raise HTTPException(status_code=500, detail=f"Failed to generate initial transcript: {str(e)}")
 
 
-@router.post("/step2", response_model=Step2Response)
+@router.post("/step2", response_model=Step2Response, dependencies=[Depends(enforce_abuse_protection)])
 async def step2_optimize_transcript(request: Step2Request):
     """Step 2: Optimize transcript for TTS (user can edit before optimization)"""
     task_manager = get_task_manager()
     task = task_manager.get_task(request.task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     transcript_service = get_transcript_service()
-    
+
     try:
         task_manager.update_task_status(
             request.task_id, TaskStatus.STEP2, 50, "Optimizing transcript..."
         )
-        
+
         # Use edited transcript if provided, otherwise use initial transcript
         if request.edited_transcript:
             transcript_to_optimize = request.edited_transcript
@@ -196,44 +256,49 @@ async def step2_optimize_transcript(request: Step2Request):
             # Load initial transcript
             initial_transcript_file = Path(task.transcript_file) if task.transcript_file else None
             if initial_transcript_file and initial_transcript_file.exists():
-                from app.utils.file_handler import load_text_file
                 transcript_to_optimize = load_text_file(initial_transcript_file)
             else:
                 raise HTTPException(status_code=400, detail="No transcript available to optimize")
-        
-        # Optimize transcript
+
+        # Optimize transcript. Synchronous OpenAI call — offload it so it doesn't
+        # block the loop.
         llm_service = transcript_service.llm_service
-        optimized_transcript = llm_service.optimize_transcript(transcript_to_optimize)
-        
+        optimized_transcript = await asyncio.to_thread(
+            llm_service.optimize_transcript, transcript_to_optimize
+        )
+
         # Save optimized transcript
         task_output_dir = OUTPUTS_DIR / request.task_id
         optimized_transcript_file = task_output_dir / "optimized_transcript.txt"
         save_transcript(optimized_transcript, optimized_transcript_file)
-        
+
         task_manager.set_task_files(request.task_id, transcript_file=str(optimized_transcript_file))
         task_manager.update_task_status(
             request.task_id, TaskStatus.STEP2, 100, "Transcript optimized"
         )
-        
+
         return Step2Response(
             task_id=request.task_id,
             optimized_transcript=optimized_transcript,
             message="Transcript optimized successfully"
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception("Step 2 failed for task %s", request.task_id)
         task_manager.set_task_error(request.task_id, str(e))
         raise HTTPException(status_code=500, detail=f"Failed to optimize transcript: {str(e)}")
 
 
-@router.post("/step3/{task_id}", response_model=TaskStatusResponse)
+@router.post("/step3/{task_id}", response_model=TaskStatusResponse, dependencies=[Depends(enforce_abuse_protection)])
 async def step3_generate_audio(task_id: str, request: Step3Request, background_tasks: BackgroundTasks):
     """Step 3: Generate audio from final transcript (only after user confirmation)"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     # Use provided final transcript or load from task
     if request and request.final_transcript:
         final_transcript = request.final_transcript
@@ -241,29 +306,27 @@ async def step3_generate_audio(task_id: str, request: Step3Request, background_t
         # Load optimized transcript
         optimized_transcript_file = Path(task.transcript_file) if task.transcript_file else None
         if optimized_transcript_file and optimized_transcript_file.exists():
-            from app.utils.file_handler import load_transcript
             final_transcript = load_transcript(optimized_transcript_file)
         else:
             raise HTTPException(status_code=400, detail="No transcript available for audio generation")
-    
+
     # Save final transcript
     task_output_dir = OUTPUTS_DIR / task_id
     task_output_dir.mkdir(parents=True, exist_ok=True)
     final_transcript_file = task_output_dir / "final_transcript.txt"
     save_transcript(final_transcript, final_transcript_file)
-    
+
     # Get voice settings from request or use defaults
     voice_settings = None
     if request and request.voice_settings:
         voice_settings = request.voice_settings
-        # Log voice settings for debugging
-        print(f"Received voice settings: {voice_settings}")
+        logger.debug("Received voice settings for task %s: %s", task_id, voice_settings)
     else:
-        print("No voice settings provided, using defaults")
-    
+        logger.debug("No voice settings provided for task %s, using defaults", task_id)
+
     # Start background audio generation
     background_tasks.add_task(process_audio_generation, task_id, final_transcript, voice_settings)
-    
+
     return TaskStatusResponse(
         task_id=task_id,
         status=TaskStatus.STEP3,
@@ -276,43 +339,47 @@ async def process_audio_generation(task_id: str, transcript: list, voice_setting
     """Background task to generate audio from transcript"""
     task_manager = get_task_manager()
     audio_service = get_audio_service()
-    
+
     try:
         task_output_dir = OUTPUTS_DIR / task_id
-        
+
         task_manager.update_task_status(
             task_id, TaskStatus.STEP3, 30, "Generating audio files..."
         )
-        
-        # Log voice settings for debugging
+
         if voice_settings:
-            print(f"Using voice settings in audio generation: {voice_settings}")
+            logger.debug("Using voice settings in audio generation for task %s: %s", task_id, voice_settings)
         else:
-            print("Using default voice settings in audio generation")
-        
-        # Pass voice settings directly to audio generation
-        audio_result = audio_service.generate_audio_from_transcript(
+            logger.debug("Using default voice settings in audio generation for task %s", task_id)
+
+        # Both generate_audio_from_transcript (synchronous; runs its own
+        # ThreadPoolExecutor internally) and merge_audio_files (synchronous; shells
+        # out to ffmpeg and waits) block. This function is awaited by FastAPI's
+        # BackgroundTasks on the event loop, so without asyncio.to_thread these calls
+        # would stall every other request and SSE stream on the server while they run.
+        audio_result = await asyncio.to_thread(
+            audio_service.generate_audio_from_transcript,
             transcript, task_output_dir, voice_settings=voice_settings
         )
-        
+
         if audio_result["success"] == 0:
             raise Exception("Failed to generate any audio files")
-        
+
         task_manager.update_task_status(
             task_id, TaskStatus.STEP3, 80, "Merging audio files..."
         )
-        
+
         # Merge audio files
         metadata_file = Path(audio_result["metadata_file"])
         merged_audio_file = task_output_dir / "merged_audio.mp3"
-        
-        merged_file = audio_service.merge_audio_files(
-            metadata_file, merged_audio_file
+
+        merged_file = await asyncio.to_thread(
+            audio_service.merge_audio_files, metadata_file, merged_audio_file
         )
-        
+
         if not merged_file:
             raise Exception("Failed to merge audio files")
-        
+
         # Update task with final files
         final_transcript_file = task_output_dir / "final_transcript.txt"
         task_manager.set_task_files(
@@ -320,12 +387,13 @@ async def process_audio_generation(task_id: str, transcript: list, voice_setting
             audio_file=str(merged_audio_file),
             transcript_file=str(final_transcript_file)
         )
-        
+
         task_manager.update_task_status(
             task_id, TaskStatus.COMPLETED, 100, "Podcast generation completed!"
         )
-        
+
     except Exception as e:
+        logger.exception("process_audio_generation failed for task %s", task_id)
         task_manager.set_task_error(task_id, str(e))
 
 
@@ -334,10 +402,10 @@ async def get_task_status(task_id: str):
     """Get task status"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return TaskStatusResponse(
         task_id=task.task_id,
         status=task.status,
@@ -354,17 +422,17 @@ async def download_audio(task_id: str):
     """Download generated audio file"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if not task.audio_file:
         raise HTTPException(status_code=404, detail="Audio file not available")
-    
+
     audio_path = Path(task.audio_file)
     if not audio_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found")
-    
+
     return FileResponse(
         path=audio_path,
         media_type="audio/mpeg",
@@ -377,17 +445,17 @@ async def download_transcript(task_id: str):
     """Download transcript file"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if not task.transcript_file:
         raise HTTPException(status_code=404, detail="Transcript file not available")
-    
+
     transcript_path = Path(task.transcript_file)
     if not transcript_path.exists():
         raise HTTPException(status_code=404, detail="Transcript file not found")
-    
+
     return FileResponse(
         path=transcript_path,
         media_type="text/plain",
@@ -400,116 +468,123 @@ async def get_transcript(task_id: str):
     """Get transcript content as JSON"""
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     # Try to load final transcript first, then optimized, then initial
     transcript_paths = [
         Path(task.transcript_file) if task.transcript_file else None,
         OUTPUTS_DIR / task_id / "final_transcript.txt",
         OUTPUTS_DIR / task_id / "optimized_transcript.txt",
-        OUTPUTS_DIR / task_id / "initial_transcript.txt"
+        OUTPUTS_DIR / task_id / "initial_transcript.txt",
     ]
-    
+
     for transcript_path in transcript_paths:
-        if transcript_path and transcript_path.exists():
+        if not transcript_path or not transcript_path.exists():
+            continue
+
+        # Structured transcripts (final/optimized) parse via the shared JSON/legacy
+        # loader. initial_transcript.txt is plain prose at this stage in the pipeline
+        # (not yet split into speaker turns), so it's expected to fail that parse —
+        # in that case fall back to returning it as a single untagged segment.
+        try:
+            transcript = load_transcript(transcript_path)
+        except ValueError:
             try:
-                from app.utils.file_handler import load_transcript, load_text_file
-                # Try to load as structured transcript first
-                try:
-                    transcript = load_transcript(transcript_path)
-                    if isinstance(transcript, list) and len(transcript) > 0:
-                        return {"transcript": transcript}
-                except:
-                    # If that fails, try as plain text
-                    content = load_text_file(transcript_path)
-                    # Try to parse as Python list
-                    try:
-                        import ast
-                        parsed = ast.literal_eval(content.strip())
-                        if isinstance(parsed, list):
-                            return {"transcript": parsed}
-                    except:
-                        pass
-                    # Return as plain text if parsing fails
-                    return {"transcript": [("Speaker 1", content)]}
-            except Exception as e:
+                content = load_text_file(transcript_path)
+            except OSError as read_error:
+                logger.warning("Failed to read transcript file %s: %s", transcript_path, read_error)
                 continue
-    
+            return {"transcript": [("Speaker 1", content)]}
+
+        if transcript:
+            return {"transcript": transcript}
+
     raise HTTPException(status_code=404, detail="Transcript not found")
 
 
 @router.get("/stream/{task_id}")
-async def stream_progress(task_id: str):
-    """SSE stream for task progress"""
+async def stream_progress(task_id: str, request: Request):
+    """
+    SSE stream for task progress.
+
+    Waits on the task's asyncio.Event (set by TaskManager on every update) instead of
+    polling the task dict on a fixed interval, detects client disconnects so
+    abandoned connections don't linger, caps total stream lifetime so a wedged task
+    can't hold a connection open forever, and sends periodic keep-alive comments so
+    intermediary proxies don't close the connection for being idle.
+    """
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
+    stream_timeout_seconds = float(os.getenv("SSE_STREAM_TIMEOUT_SECONDS", "1800"))  # 30 minutes
+    keepalive_interval_seconds = float(os.getenv("SSE_KEEPALIVE_INTERVAL_SECONDS", "15"))
+
+    def _progress_event(current: Task) -> dict:
+        return {
+            "event": "progress",
+            "data": ProgressEvent(
+                task_id=current.task_id,
+                status=current.status,
+                progress=current.progress,
+                message=current.message or (current.error if current.status == TaskStatus.FAILED else None)
+            ).model_dump_json(),
+        }
+
     async def event_generator():
+        stream_start = time.monotonic()
         last_progress = -1
         last_status = None
-        
-        # Send initial status immediately
-        task = task_manager.get_task(task_id)
-        if task:
-            event = ProgressEvent(
-                task_id=task.task_id,
-                status=task.status,
-                progress=task.progress,
-                message=task.message or "Initializing..."
-            )
-            yield {
-                "event": "progress",
-                "data": event.model_dump_json()
-            }
-            last_progress = task.progress
-            last_status = task.status
-        
-        while True:
-            task = task_manager.get_task(task_id)
-            if not task:
-                break
-            
-            # Check if status or progress changed
-            status_changed = task.status != last_status
-            progress_changed = task.progress != last_progress
-            
-            if status_changed or progress_changed:
-                event = ProgressEvent(
-                    task_id=task.task_id,
-                    status=task.status,
-                    progress=task.progress,
-                    message=task.message
-                )
-                # SSE format: data: {...}\n\n
-                yield {
-                    "event": "progress",
-                    "data": event.model_dump_json()
-                }
-                last_progress = task.progress
-                last_status = task.status
-            
-            # Stop if completed or failed
-            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-                # Send final event if not already sent
-                if task.status != last_status or task.progress != last_progress:
-                    event = ProgressEvent(
-                        task_id=task.task_id,
-                        status=task.status,
-                        progress=task.progress,
-                        message=task.message or (task.error if task.status == TaskStatus.FAILED else "Completed")
-                    )
-                    yield {
-                        "event": "progress",
-                        "data": event.model_dump_json()
-                    }
-                break
-            
-            await asyncio.sleep(1)  # Check every 1 second
-    
-    return EventSourceResponse(event_generator())
 
+        # Send initial status immediately
+        current = task_manager.get_task(task_id)
+        if not current:
+            return
+        yield _progress_event(current)
+        last_progress, last_status = current.progress, current.status
+        if current.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+            return
+
+        while True:
+            if await request.is_disconnected():
+                logger.info("Client disconnected from SSE stream for task %s", task_id)
+                return
+
+            if time.monotonic() - stream_start > stream_timeout_seconds:
+                logger.warning(
+                    "SSE stream for task %s exceeded %.0fs timeout; closing", task_id, stream_timeout_seconds
+                )
+                return
+
+            current = task_manager.get_task(task_id)
+            if not current:
+                return
+
+            try:
+                await asyncio.wait_for(current.update_event.wait(), timeout=keepalive_interval_seconds)
+                current.update_event.clear()
+            except asyncio.TimeoutError:
+                # No update within the keep-alive window — send a comment (not a data
+                # event) purely to keep intermediary proxies from treating this
+                # connection as idle and closing it.
+                yield {"comment": "keep-alive"}
+                continue
+
+            current = task_manager.get_task(task_id)
+            if not current:
+                return
+
+            status_changed = current.status != last_status
+            progress_changed = current.progress != last_progress
+            if status_changed or progress_changed:
+                yield _progress_event(current)
+                last_progress, last_status = current.progress, current.status
+
+            if current.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+                return
+
+    return EventSourceResponse(event_generator())
