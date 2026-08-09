@@ -71,8 +71,11 @@ Text2Podcast/
 │   │   ├── api/         # API 路由
 │   │   ├── models/      # 資料模型
 │   │   ├── prompts.py   # Prompt 模板（供應商無關）
+│   │   ├── mcp_server.py # 本機 stdio MCP Server（Phase 7，見下方說明）
 │   │   ├── services/    # 業務邏輯服務
 │   │   │   ├── llm/     # LLM 供應商實作（Gemini 預設／OpenAI 可選）
+│   │   │   ├── pipeline.py # 共用的 TTS 管線（preflight／語音設定解析／合成＋合併），
+│   │   │   │           # 供 Skill CLI 與 MCP Server 共用，避免各自維護一份複本
 │   │   │   └── ...      # audio_service、task_manager、transcript_service
 │   │   └── utils/       # 工具函數
 │   ├── outputs/         # 生成的輸出檔案
@@ -376,6 +379,76 @@ python .claude/skills/text2podcast/scripts/synthesize.py \
 檔（與 `app.utils.file_handler.save_transcript` 寫出的格式相同）。完整參數說明、
 可用語音清單見 [`voice_list.md`](voice_list.md) 與 Skill 內的
 [`SKILL.md`](.claude/skills/text2podcast/SKILL.md)。
+
+### 🔌 MCP Server 使用（`backend/app/mcp_server.py`，免 LLM API 金鑰）
+
+除了 Web 介面與 Claude Agent Skill，本 repo 也提供一個**本機 stdio MCP
+Server**，讓任何支援 [Model Context Protocol](https://modelcontextprotocol.io/)
+的用戶端（Claude Code、Claude Desktop、Cursor……）都能呼叫同一套文字轉語音管線，
+不限於 Claude 生態系。
+
+**與 Skill 的關係**：兩者共用同一套邏輯——`backend/app/services/pipeline.py`
+（preflight 檢查、語音／風格預設值解析、產生後合併並統整部分失敗的規則），
+分別是這套共用管線的兩個薄包裝層，不是各自維護一份複本。差異在於介面本身：
+Skill 是一支一次性執行、結束就砍掉暫存檔的 CLI 腳本；MCP Server 則是常駐的
+stdio 行程，工作階段之間可以呼叫 `regenerate_segment` 修正某一句對白，因此
+它會把每次 `synthesize_podcast` 的逐句暫存音檔與 `metadata.json`
+留在輸出檔案旁的 `<輸出檔名>.segments/` 目錄，而不是用完即刪的暫存資料夾。
+
+與 Skill 相同，這個 Server **只做文字轉語音與合併，不負責撰寫逐字稿**——
+逐字稿一樣由呼叫端（agent 或使用者）準備好再傳入。因此也只需要
+**Google Cloud TTS 的憑證**（`GOOGLE_APPLICATION_CREDENTIALS`）與 `ffmpeg`，
+不需要 `GEMINI_API_KEY` 或 `OPENAI_API_KEY`。
+
+安裝方式：
+
+1. 安裝 backend 的相依套件（`mcp==2.0.0` 已在 `backend/requirements.txt` 中釘選）：
+
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+2. 安裝 `ffmpeg` 並確保在 `PATH` 中可找到（與 Web 介面、Skill 的需求相同）。
+
+3. 設定 Google Cloud 憑證：
+
+   ```bash
+   export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
+   ```
+
+4. 在 MCP 用戶端的設定檔中登記這個 Server（以 Claude Code 的 `.mcp.json` 為例）：
+
+   ```json
+   {
+     "mcpServers": {
+       "text2podcast": {
+         "command": "python",
+         "args": ["-m", "app.mcp_server"],
+         "cwd": "/absolute/path/to/Text2Podcast/backend",
+         "env": {
+           "GOOGLE_APPLICATION_CREDENTIALS": "/absolute/path/to/service-account-key.json"
+         }
+       }
+     }
+   }
+   ```
+
+   也可以直接手動啟動（除錯用）：`cd backend && python -m app.mcp_server`——
+   這是一個純 stdio 行程，不會開任何網路 port。
+
+提供三個工具：
+
+- **`list_voices`**：列出 `voice_list.md` 中所有可用語音（名稱＋性別），無參數。
+- **`synthesize_podcast`**：傳入 `segments`（`[{"speaker", "text"}, ...]`）與絕對路徑
+  `output_path`，可選 `voices` / `styles`（每句上限 200 字）/ `model` / `language`
+  覆寫預設值。長逐字稿會透過 MCP 的 progress 通知回報目前合成到第幾句；呼叫會一路
+  阻塞到整集完成為止，沒有另外的輪詢工具。若有片段合成失敗，回傳結果會以
+  `partial: true` 明確標示，並在 `failed_segments` 中列出確切是哪幾句、為什麼失敗
+  ——不會把「漏了幾句對白」誤報成成功。
+- **`regenerate_segment`**：傳入同一個 `output_path` 與 1-based 的
+  `segment_index`，可選擇覆寫該句的 `text` / `voice` / `style_prompt`，重新合成
+  該句後自動重新合併整集。若該集的暫存工作檔案已不存在（例如被手動刪除），
+  會回傳明確錯誤，而不是默默把整集重新合成一次。
 
 ### 命令列使用（舊版，僅供參考）
 
