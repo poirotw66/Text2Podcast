@@ -192,6 +192,117 @@ npm run build
 npm run preview
 ```
 
+## 🧪 測試
+
+### 前端測試
+
+前端使用 **Vitest** + **React Testing Library** + **jsdom**（與 Vite 專案天然搭配，
+不需另外設定轉譯工具）。測試檔與被測檔案同層，以 `*.test.ts(x)` 命名。
+
+```bash
+cd frontend
+npm test          # 執行一次（CI 用）
+npm run test:watch  # 監看模式，開發時使用
+```
+
+目前涵蓋幾個實際出過狀況、值得釘住行為的地方，而非追求覆蓋率：
+
+- `src/services/api.ts` 的 `getErrorMessage`：後端 `detail` 訊息、非 axios 錯誤、
+  格式不正確的回應，三種情況各自的降級行為
+- `src/data/tonePresets.ts`：每個語氣預設都能解析出非空 prompt，`natural` 為預設，
+  未知 id 不會拋例外
+- `src/components/Step4Result.tsx` 的**部分失敗警告**（`partial: true`
+  時）：警告需標示失敗與總片段數、不得同時顯示「成功」狀態、下載仍可正常使用，
+  且警告以文字標籤與 `role="alert"` 傳達，不只靠顏色區分
+- `src/components/SegmentList.tsx`：失敗片段有視覺區分、「只顯示失敗片段」篩選
+  正常運作、重新生成中會鎖住其他重新生成按鈕（避免重複呼叫 TTS 而多收費）
+- `src/hooks/useProgress.tsx`：SSE 事件的 `total_segments`／`failed_segments`／
+  `partial` 欄位正確帶出、串流網址來自 `podcastApi.getProgressStreamUrl`
+  （而非寫死的 host——這曾是真的 bug）
+
+所有測試皆為確定性（deterministic），不會真的發送網路請求（`../services/api`
+與 `EventSource` 皆以 mock/stub 取代）。
+
+### 後端測試
+
+後端使用 **pytest**，測試依賴另外釘選於 `backend/requirements-dev.txt`（與
+`requirements.txt` 分開，正式環境不需要安裝）：
+
+```bash
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+詳見 `backend/pytest.ini` 與 `backend/tests/`。
+
+### CI
+
+`.github/workflows/ci.yml` 在每次 push／pull request 時執行：
+
+- **backend job**：對 **Python 3.11 與 3.13** 兩個版本各跑一次 `pytest`（安裝
+  `ffmpeg` 後執行）。3.13 這個版本特別關鍵——它是驗證「移除 pydub、改用
+  ffmpeg」這項修正沒有回歸的唯一防線，因為 pydub 依賴的 `audioop` 模組正是在
+  Python 3.13 被移除
+- **frontend job**：Node 22 上依序執行型別檢查（`tsc -b`）、`lint`、`build`、
+  `test`
+
+## 🐳 Docker 部署
+
+專案提供 `backend/Dockerfile`、`frontend/Dockerfile` 與根目錄的
+`docker-compose.yml`，可用容器方式啟動前後端。
+
+### 快速開始
+
+```bash
+# 1. 準備一份環境變數檔給 docker compose 用（例如 .env.docker），至少包含：
+#    GOOGLE_APPLICATION_CREDENTIALS_HOST=/path/on/your/host/service-account-key.json
+#    GEMINI_API_KEY=your_gemini_api_key
+# 其餘可選變數（LLM_PROVIDER、CORS_ALLOW_ORIGINS、API_KEY 等）說明見
+# .env.example 與 docker-compose.yml 內的註解；GOOGLE_APPLICATION_CREDENTIALS_HOST
+# 是 docker-compose 專用的變數（指向主機路徑，用來掛載進容器），不在 .env.example 中。
+
+# 2. 建置並啟動
+docker compose --env-file .env.docker up --build
+```
+
+- 前端：http://localhost:8080
+- 後端：http://localhost:8000（健康檢查：http://localhost:8000/health）
+
+`docker-compose.yml` 內以註解列出每個環境變數的用途，以及哪些是必要、哪些是選用（詳細說明仍以
+[`.env.example`](.env.example) 與 [`backend/README.md`](backend/README.md) 為準）。
+Google 服務帳戶金鑰以**唯讀方式**從主機路徑掛載進容器，不會被打包進映像檔。
+
+### 資料持久性
+
+生成的音訊與逐字稿（`backend/outputs/<task_id>/`）掛載於具名 volume
+（`backend-outputs`），`docker compose restart`／`down` 後不會遺失；容器本身的
+可寫層（writable layer）並不持久，若把輸出目錄留在容器內、不掛載 volume，
+重建容器就會遺失所有已生成的 Podcast。
+
+### ⚠️ 後端務必以單一 worker 執行
+
+`backend/Dockerfile` 的 `CMD` **沒有**加上 `--workers`，這是刻意的：`TaskManager`
+（`backend/app/services/task_manager.py`）把所有任務狀態存在該 process
+的記憶體中，並未跨 process 共享。若改成多個 uvicorn worker、或水平擴充為多個
+container replica，請求可能被路由到「沒看過」這個任務的 process，導致
+`/api/status/{task_id}`、`/api/stream/{task_id}` 間歇性 404 或回傳過期進度。
+Dockerfile 中已用註解標明這個限制；若未來真的需要多 process，`TaskManager`
+必須先換成共用儲存（Redis／SQLite 等）——它已預留 `TaskStore` 介面方便替換，
+但目前尚未實作。詳見 [`backend/README.md`](backend/README.md)。
+
+### 前端映像檔與 SPA 路由
+
+前端為 React Router 的單頁應用（SPA），`frontend/Dockerfile` 以多階段建置：
+先用 Node 建置靜態檔案，再用 nginx 提供服務。`frontend/nginx.conf` 已設定
+`try_files ... /index.html` 的 fallback，確保直接開啟或重新整理
+`/result/:taskId` 這類深層連結不會出現 404。
+
+呼叫後端所用的 `VITE_API_URL` 是在**映像檔建置時**被 Vite 內嵌進打包後的 JS
+（`import.meta.env.VITE_API_URL`），無法像一般伺服器環境變數在啟動容器時改變；
+若後端網址與本地開發（`http://localhost:8000`）不同，需在建置時透過
+`--build-arg VITE_API_URL=...`（或 `docker-compose.yml` 的 `build.args`）覆蓋。
+
 ## 📖 使用方式
 
 ### Web 介面使用

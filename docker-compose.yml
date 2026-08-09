@@ -1,0 +1,91 @@
+# Local/self-hosted Docker setup for Text2Podcast.
+#
+# Quick start:
+#   1. Create a .env.docker with at least:
+#        GOOGLE_APPLICATION_CREDENTIALS_HOST=/path/on/your/host/service-account-key.json
+#        GEMINI_API_KEY=your_gemini_api_key
+#      (GOOGLE_APPLICATION_CREDENTIALS_HOST is compose-only -- it points at a
+#      path on the HOST that gets mounted in; it is not in .env.example.)
+#   2. docker compose --env-file .env.docker up --build
+#
+# Full variable reference (what each one does, and which provider needs it)
+# lives in .env.example at the repo root and in backend/README.md -- this
+# file only documents which ones docker-compose itself reads and whether
+# they're required.
+#
+# ⚠️ Single backend worker only. TaskManager (backend/app/services/task_manager.py)
+# keeps task state in an in-memory dict inside one process. Do not add
+# `--workers`/`replicas` to the backend service or run more than one instance
+# behind a shared load balancer -- see backend/Dockerfile and backend/README.md.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '8000:8000'
+    environment:
+      # --- Required ---------------------------------------------------------
+      # Path *inside the container* to the mounted credentials file below.
+      # Used by google-cloud-texttospeech (always, for TTS) and, when
+      # LLM_PROVIDER=gemini with no GEMINI_API_KEY, as the Vertex AI fallback
+      # credential too.
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-credentials.json
+
+      # --- Optional (effectively required depending on LLM_PROVIDER) --------
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      TTS_MODEL: ${TTS_MODEL:-}
+
+      # --- Optional (safe defaults; see .env.example for full description) --
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:8080,http://localhost:3000}
+      API_KEY: ${API_KEY:-}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-20}
+      TASK_TTL_SECONDS: ${TASK_TTL_SECONDS:-86400}
+      TASK_MAX_COUNT: ${TASK_MAX_COUNT:-1000}
+      SSE_STREAM_TIMEOUT_SECONDS: ${SSE_STREAM_TIMEOUT_SECONDS:-1800}
+      SSE_KEEPALIVE_INTERVAL_SECONDS: ${SSE_KEEPALIVE_INTERVAL_SECONDS:-15}
+    volumes:
+      # Google Cloud service-account key, mounted read-only from a path on
+      # the HOST (not committed, not built into the image). Required.
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST}:/run/secrets/gcp-credentials.json:ro
+      # Generated audio/transcripts (backend/outputs/<task_id>/, written by
+      # app/api/routes.py + app/services/task_manager.py) live on a named
+      # volume so a podcast survives `docker compose restart`/`down` --
+      # without this, TaskManager's on-disk output directory is only as
+      # durable as the container's writable layer, which is discarded on
+      # container removal.
+      - backend-outputs:/app/outputs
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the built JS at image-build time (see frontend/Dockerfile).
+        # Must be reachable from the *browser*, not just from inside the
+        # compose network -- hence localhost:8000 (the backend's published
+        # port above), not the backend's internal service name.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - '8080:80'
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-outputs:
