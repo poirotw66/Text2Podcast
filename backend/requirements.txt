@@ -18,11 +18,20 @@
 # the default script-writing provider. It's the current `google-genai` SDK, not the
 # deprecated `google-generativeai` package. openai stays pinned too: LLM_PROVIDER=openai
 # still selects the original OpenAI-backed script writer.
+#
+# mcp is app/mcp_server.py, the local stdio MCP server (Phase 7) -- a separate
+# entry point onto app/services/pipeline.py, not used by the FastAPI app or the
+# Claude Agent Skill. Pinned at 2.0.0: its layout differs from the more commonly
+# documented 1.x API (no `mcp.server.fastmcp`/`FastMCP` -- see app/mcp_server.py's
+# module docstring and MCP_DESIGN.md for what was actually verified against this
+# version). Needs no LLM key, only GOOGLE_APPLICATION_CREDENTIALS + ffmpeg, same
+# as the skill.
 fastapi==0.141.1
 uvicorn[standard]==0.52.1
 openai==2.53.0
 google-genai==2.17.0
 google-cloud-texttospeech==2.37.0
+mcp==2.0.0
 pydantic==2.13.4
 python-multipart==0.0.32
 python-dotenv==1.2.2

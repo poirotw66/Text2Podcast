@@ -12,7 +12,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
+from typing import Callable, List, Tuple, Dict, Optional
 from google.cloud import texttospeech
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -245,7 +245,8 @@ class AudioService:
         voice_settings: Optional[Dict[str, str]] = None,
         style_settings: Optional[Dict[str, str]] = None,
         model: Optional[str] = None,
-        language_code: Optional[str] = None
+        language_code: Optional[str] = None,
+        progress_callback: Optional[Callable[[int, int, str, int], None]] = None
     ) -> Dict:
         """
         Generate audio files from transcript
@@ -267,6 +268,13 @@ class AudioService:
                 Per-call for the same reason as the settings above -- callers that need a
                 different model must not have to reassign the module constant.
             language_code: Optional language override; defaults to LANGUAGE_CODE.
+            progress_callback: Optional callback invoked as `callback(completed, total,
+                speaker, index)` synchronously, on the calling thread, each time one more
+                segment finishes (in completion order, not index order). Added for the
+                MCP server (backend/app/mcp_server.py), which bridges this back to
+                `Context.report_progress()` on the event loop via
+                `asyncio.run_coroutine_threadsafe`; existing callers that don't pass it
+                see no behavior change.
 
         Returns:
             Dictionary with audio files info and metadata
@@ -355,6 +363,8 @@ class AudioService:
                 result = future.result()
                 task = future_to_task[future]
                 results[task["index"]] = result
+                if progress_callback is not None:
+                    progress_callback(len(results), len(tasks), task["speaker"], task["index"])
 
         # Sort and process results. Every segment is recorded here in index order --
         # successful and failed alike -- so downstream consumers (the segments API,
