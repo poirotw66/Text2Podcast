@@ -216,6 +216,56 @@ npm run preview
    - 預覽音訊檔案
    - 下載最終的 Podcast 音訊檔
 
+### 🧩 Claude Agent Skill 使用（`.claude/skills/text2podcast/`，免 LLM API 金鑰）
+
+除了 Web 介面，本repo 也附帶一個 [Claude Agent Skill](https://www.anthropic.com/news/agent-skills)，
+讓在 Claude Code／claude.ai 中工作的使用者可以直接把一段文字、一份文件或一篇文章轉成
+雙講者 Podcast MP3，全程留在對話裡完成，不需要另外啟動後端伺服器。
+
+**與 Web 介面最大的差異**：Skill 是在 Claude 內部執行的，逐字稿由 **Claude 自己撰寫**，
+不會呼叫任何 LLM API（沒有 `google-genai`、`openai`、也不需要 FastAPI）。因此這個
+Skill **只需要 Google Cloud TTS 的憑證**（`GOOGLE_APPLICATION_CREDENTIALS`），
+不需要 `GEMINI_API_KEY` 或 `OPENAI_API_KEY`——這是它相對於跑完整 Web 應用程式的
+主要優勢。語音合成與音訊合併仍然直接重用 `backend/app/services/audio_service.py`，
+與 Web 介面共用同一套邏輯，沒有另外維護一份複本。
+
+安裝方式：
+
+1. **安裝 `google-cloud-texttospeech`**（`backend/requirements.txt` 中已釘選版本，
+   Skill 本身不需要任何額外的 Python 套件）：
+
+   ```bash
+   pip install google-cloud-texttospeech==2.37.0
+   # 或直接安裝整個 backend 的依賴（會多裝 FastAPI 等用不到的套件）：
+   pip install -r backend/requirements.txt
+   ```
+
+2. **安裝 ffmpeg** 並確保在 `PATH` 中可找到（音訊片段合併會直接呼叫 `ffmpeg` 執行檔，
+   與 Web 介面的需求相同）。
+
+3. **設定 Google Cloud 憑證**：
+
+   ```bash
+   export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account-key.json
+   ```
+
+在 Claude Code 或任何支援 Agent Skills 的介面中，只要提到「把這段文字轉成
+Podcast」之類的請求，Skill 就會被觸發：Claude 會詢問（或推斷）長度模式、撰寫雙講者
+逐字稿、與你確認腳本內容後，再呼叫 `.claude/skills/text2podcast/scripts/synthesize.py`
+產生並合併音訊。也可以直接手動呼叫這支腳本：
+
+```bash
+python .claude/skills/text2podcast/scripts/synthesize.py \
+    --transcript transcript.json \
+    --output podcast.mp3 \
+    --voice "Speaker 1=Kore" --voice "Speaker 2=Charon"
+```
+
+`--transcript` 需為 `[{"speaker": "Speaker 1", "text": "..."}, ...]` 格式的 JSON
+檔（與 `app.utils.file_handler.save_transcript` 寫出的格式相同）。完整參數說明、
+可用語音清單見 [`voice_list.md`](voice_list.md) 與 Skill 內的
+[`SKILL.md`](.claude/skills/text2podcast/SKILL.md)。
+
 ### 命令列使用（舊版，僅供參考）
 
 專案早期提供的命令列工具已移至 `scripts/legacy/`，僅作為參考保留，

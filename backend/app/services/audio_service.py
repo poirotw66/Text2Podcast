@@ -243,7 +243,9 @@ class AudioService:
         output_dir: Path,
         max_workers: int = 5,
         voice_settings: Optional[Dict[str, str]] = None,
-        style_settings: Optional[Dict[str, str]] = None
+        style_settings: Optional[Dict[str, str]] = None,
+        model: Optional[str] = None,
+        language_code: Optional[str] = None
     ) -> Dict:
         """
         Generate audio files from transcript
@@ -261,11 +263,18 @@ class AudioService:
                 voice_settings. Unknown keys are ignored; speakers missing from the dict
                 fall back to DEFAULT_TTS_PROMPT. Also a per-call argument, for the same
                 concurrency reason as voice_settings.
+            model: Optional TTS model override; defaults to the module-level TTS_MODEL.
+                Per-call for the same reason as the settings above -- callers that need a
+                different model must not have to reassign the module constant.
+            language_code: Optional language override; defaults to LANGUAGE_CODE.
 
         Returns:
             Dictionary with audio files info and metadata
         """
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        effective_model = model if model is not None else TTS_MODEL
+        effective_language = language_code if language_code is not None else LANGUAGE_CODE
 
         # Use provided voice/style settings or fall back to defaults
         voices_to_use = voice_settings if voice_settings else DEFAULT_SPEAKER_VOICES
@@ -335,6 +344,8 @@ class AudioService:
                     task["text"],
                     task["voice"],
                     task["output_file"],
+                    model=effective_model,
+                    language_code=effective_language,
                     prompt=task["prompt"]
                 ): task for task in tasks
             }
@@ -375,8 +386,8 @@ class AudioService:
             "total_segments": len(transcript),
             "success": success_count,
             "failed": fail_count,
-            "model_used": TTS_MODEL,
-            "language_code": LANGUAGE_CODE,
+            "model_used": effective_model,
+            "language_code": effective_language,
             "audio_files": audio_files
         }
 
